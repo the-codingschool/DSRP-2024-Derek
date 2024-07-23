@@ -1,0 +1,14 @@
+```{r}
+getwd()
+```
+
+```{r}
+path <- "/Users/renatetoldo/Derek_Project/Data"
+setwd("/Users/renatetoldo/Derek_Project/Data")
+file.exists(path)
+fileName <- list.files(path)
+file.exists(fileName)
+
+data <- read.csv(fileName)
+```
+
