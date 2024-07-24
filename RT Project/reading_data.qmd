@@ -1,4 +1,9 @@
 ```{r}
+library(tidyverse)
+library(janitor)
+library(dplyr)
+library(ggplot2)
+
 getwd()
 ```
 
@@ -9,4 +14,11 @@ file.exists(fileName)
 data <- read.csv(fileName)
 head(data)
 ```
+
+```{r}
+df <- clean_names(data, case = "snake")
+head(df)
+df <- remove_empty(df, which = c("rows", "cols"))
+```
+
 
