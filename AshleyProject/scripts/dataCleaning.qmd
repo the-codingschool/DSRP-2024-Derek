@@ -1,0 +1,26 @@
+```{r}
+getwd()
+
+## read in dataset 
+
+office_data <- read.csv("data/office_sentiment .csv")
+```
+
+```{r}
+
+#provides a preview of the dataset
+
+head(office_data)
+office_data
+```
+
+```{r}
+#install.packages("janitor")
+library(janitor)
+library(dplyr)
+
+office_data <- clean_names(office_data, "snake")
+get_dupes(office_data)
+clean_office_data <- remove_empty(office_data, c('rows', 'cols'))
+clean_office_data
+```
