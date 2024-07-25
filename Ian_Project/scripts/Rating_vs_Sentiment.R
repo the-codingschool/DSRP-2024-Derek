@@ -4,6 +4,7 @@ library(ggplot2)
 original_data <- read.csv("data/office_sentiment .csv") 
 data <- na.omit(original_data)
 
+data <- data |> mutate(average_score = (sentimentAnalysis_score+ sentimentr_score+ syuzhet_score)/3)
 #Episode score vs Episode rating
 episode_data <- data |> 
   distinct(season, episode) |>
