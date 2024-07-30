@@ -14,25 +14,22 @@ head(data)
 result <- data %>%
   group_by(character_name, season, episode) %>% 
   filter(sentimentAnalysis_score != 0) %>%
-  summarise(mean_value = mean(sentimentAnalysis_score)) %>%
-  filter(season == 9) #Edit this and below to change season
+  summarise(mean_value = mean(sentimentAnalysis_score)) 
 
 resultr <- data %>%
   mutate(character_name_plus_2 = paste(character_name, "2", sep = ''))
 resultr <- resultr %>%
   group_by(character_name_plus_2, season, episode) %>% 
   filter(sentimentr_score != 0) %>%
-  summarise(mean_value = mean(sentimentr_score)) %>%
-  filter(season == 9) #Edit this too
+  summarise(mean_value = mean(sentimentr_score)) 
 
 resultz <- data %>%
   mutate(character_name_plus_3 = paste(character_name, "3", sep = ''))
 resultz <- resultz %>%
   group_by(character_name_plus_3, season, episode) %>% 
   filter(syuzhet_score != 0) %>%
-  summarise(mean_value = mean(syuzhet_score)) %>%
-  filter(season == 9) #Edit this too
-  
+  summarise(mean_value = mean(syuzhet_score)) 
+
 df_wide <- result %>%
   pivot_wider(
     names_from = character_name,     
@@ -59,33 +56,32 @@ merged_df <- df_wide %>%
   full_join(df_wider) %>%
   full_join(df_widez)
 print(merged_df)
-  
+
 results <- data %>%
-  group_by(season) %>%
-  filter(season == 9) ##Change this
+  group_by(season, episode, imdb_rating) %>%
+  distinct(season, episode)
 
-new_data <- results %>%
-  group_by(episode, imdb_rating) %>%
-  distinct(episode)
 
-merged_df$imdb_rating <- paste(new_data$imdb_rating)
+merged_df$imdb_rating <- paste(results$imdb_rating)
 merged_df$imdb_rating <- as.numeric(merged_df$imdb_rating)
 
 
+
 set.seed(42)
-datas <- merged_df[, c("imdb_rating", "Jim", "Jim2", "Jim3")]
+datas <- merged_df[, c("imdb_rating", "Jim", "Jim2", "Jim3", "Dwight", "Dwight2", "Dwight3", "Michael", "Michael2", "Michael3", "Pam", "Pam2", "Pam3", "Andy", "Andy2", "Andy3", "season")]
 split <- sample.split(datas$imdb_rating, SplitRatio = 0.8)
 train_data <- subset(datas, split == TRUE)
 test_data <- subset(datas, split == FALSE)
-lr_model <- lm(imdb_rating ~ Jim + Jim2 + Jim3, data = train_data)
+lr_model <- lm(imdb_rating ~ Jim + Jim2 + Jim3 + Dwight + Dwight2 + Dwight3 + Michael + Michael2 + Michael3 + Pam + Pam2 + Pam3 + Andy + Andy2 + Andy3, data = train_data)
 pred <- predict(lr_model, newdata = test_data)
-ggplot(test_data, aes(x = imdb_rating, y = pred)) +
+ggplot(test_data, aes(x = imdb_rating, y = pred, color = factor(season))) +
   geom_point() +
   geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +
-  labs(title = "Real v.s. Predicted Values Season 9",
+  labs(title = "Real v.s. Predicted Values (All Seasons)",
        x = "True IMDB Rating",
        y = "Predicted IMDB Rating",
-       ) +
+       color = "Season",
+  ) +
   scale_x_continuous(
     limits = c(6,10)
   ) +
@@ -94,5 +90,7 @@ ggplot(test_data, aes(x = imdb_rating, y = pred)) +
   )
 r_squared <- summary(lr_model)$r.squared
 r_squared
+
+summary(lr_model)
 
 
