@@ -1,0 +1,751 @@
+---
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+getwd()
+
+## read in dataset 
+
+office_data <- read.csv("data/office_sentiment .csv")
+```
+
+```{r}
+
+#provides a preview of the dataset
+
+head(office_data)
+office_data
+```
+
+```{r}
+#install.packages("janitor")
+library(janitor)
+library(dplyr)
+
+# changes the names of the column to snakecase
+office_data <- clean_names(office_data, "snake")
+
+#gets any duplicates in the dataset
+get_dupes(office_data)
+
+#removes any NA values in the dataset
+clean_office_data <- na.omit(office_data)
+clean_office_data
+
+#removes the text w/ direction column (since that is not used for sentiment analysis) and index
+clean_office_data <- subset(clean_office_data, select = -(text_w_direction && index))
+clean_office_data
+
+#summary of clean dataset columns
+str(clean_office_data)
+```
+
+graphing the data
+
+sentiment_analysis_score vs imdb_rating
+
+sentiment_analysis_score vs character
+
+sentiment_analysis_score vs writer or director
+
+```{r}
+#downloading libraries 
+library(dplyr)
+library(ggplot2)
+```
+
+```{r}
+#plot for sentiment score vs imbd rating
+ggplot(clean_office_data, aes(x = sentiment_analysis_score, y = imdb_rating)) +
+  geom_point() +
+  labs(title = "Sentiment Score vs. IMDB Rating", x = "Sentiment Score", y = "IMDB Rating")
+
+#plot for sentiment score vs character
+ggplot(clean_office_data, aes(x = character, y = sentiment_analysis_score)) +
+  geom_boxplot() +
+  labs(title = "Sentiment Score by Character", x = "Character", y = "Sentiment Score") 
+  
+```
+
+```{r}
+#sentiment analysis scores by character 
+
+#identify the main characters
+main_characters <- c("Michael", "Jim", "Pam", "Dwight", "Ryan", "Andy")
+
+#finds the top 20 characters by frequency (count)
+top_n_characters <- clean_office_data %>%
+  count(character, sort = TRUE) %>%
+  top_n(10, n) %>%
+  pull(character)
+
+#filters the dataset and only keeps the rows where the character is 
+top10_clean_office_data <- filter(clean_office_data, character %in% top_n_characters)
+
+#create a new column which classifies each character as main or minor character
+
+top10_clean_office_data <- top10_clean_office_data %>%
+  mutate(character_type = ifelse(character %in% main_characters, "Main", "Minor"))
+
+str(top10_clean_office_data)
+
+ggplot(top10_clean_office_data, aes(x = reorder(character, sentiment_analysis_score), y = sentiment_analysis_score, fill = character_type)) +
+  geom_boxplot(fatten = 3,  
+               color = "black") +
+  labs(title = "Sentiment Score by Character", x = "Character", y = "Sentiment Score") +
+  scale_fill_manual(values = c("Main" = "steelblue", "Minor" = "lightblue"), name = "Character Type") +
+  theme_minimal() +
+  theme(
+    text = element_text(family = "AppleGothic"), 
+    axis.text.x = element_text(angle = 45, hjust = 1, family = "AppleGothic"),
+    axis.text.y = element_text(family = "AppleGothic"), 
+        plot.title = element_text(hjust = 0.5, family = "AppleGothic"), 
+        legend.text = element_text(family = "AppleGothic"), 
+        legend.title = element_text(family = "AppleGothic"), 
+        )
+```
+
+```{r}
+#sentiment score vs imbd rating 
+
+ggplot(clean_office_data, aes(x = sentiment_analysis_score, y = imdb_rating)) +
+  geom_point(alpha = 1/10) +
+  labs(title = "Sentiment Score vs. IMDB Rating", x = "Sentiment Score", y = "IMDB Rating") + 
+  theme_minimal()
+
+#used geom_point(alpha = 1/10)
+#, fill = season
+#add geom_jitter 
+#geom_jitter(alpha = 0.5, width = 0.1, height = 0.1)
+#geom_smooth(method = "lm", color = "red", se = FALSE) +
+```
+
+```{r}
+#sentiment score vs director 
+
+#calculares the average sentiment score per director 
+
+average_sentiment_per_director <- top20_clean_office_data %>%
+  group_by(director) %>%
+  summarize(
+    mean_sentiment_analysis_score = mean(sentiment_analysis_score, na.rm = TRUE),
+    mean_sentimentr_score = mean(sentimentr_score, na.rm = TRUE),
+    mean_syuzhet_score = mean(syuzhet_score, na.rm = TRUE)
+  ) %>%
+  mutate(final_average_score = (mean_sentiment_analysis_score + mean_sentimentr_score + mean_syuzhet_score) / 3)
+```
+
+```{r}
+ggplot(clean_office_data, aes(x = factor(season), y = sentiment_analysis_score)) +
+  geom_boxplot() +
+  labs(title = "Sentiment Score by Season", x = "Season", y = "Sentiment Score")
+```
+
+```{r}
+#average sentiment scores per season (bar chart?)
+
+average_sentiment_per_season <- clean_office_data %>%
+  group_by(season) %>%
+  summarize(
+    mean_sentiment_analysis_score = mean(sentiment_analysis_score, na.rm = TRUE),
+    mean_sentimentr_score = mean(sentimentr_score, na.rm = TRUE),
+    mean_syuzhet_score = mean(syuzhet_score, na.rm = TRUE), 
+    mean_imdb_rating = mean(imdb_rating, na.rm = TRUE)
+  ) %>%
+  mutate(final_average_score = (mean_sentiment_analysis_score + mean_sentimentr_score + mean_syuzhet_score) / 3)
+
+print(average_sentiment_per_season)
+```
+
+```{r}
+ggplot(average_sentiment_per_season, aes(x = factor(season), y = final_average_score, fill = mean_imdb_rating)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Final Average Sentiment Score Per Season", x = "Season", y = "Final Average Sentiment Score") +
+  scale_fill_gradient(low = "lightblue", high = "darkblue", name = "Average IMDB Rating") +
+  theme_minimal()
+
+```
+
+```{r}
+#group by episode
+#count the # of minor vs major characters 
+
+main_characters <- c("Michael", "Jim", "Pam", "Dwight", "Ryan", "Andy")
+
+category_office_data <- clean_office_data %>%
+  mutate(character_type = ifelse(character %in% main_characters, "Main", "Minor"))
+
+table(category_office_data$character_type)
+
+colnames(category_office_data)
+
+episode_character_counts <- category_office_data %>%
+  group_by(season, episode) %>%
+  summarize(
+    num_main_characters = n_distinct(character[character_type == "Main"]),
+    num_minor_characters = n_distinct(character[character_type == "Minor"])
+  )
+
+episode_character_counts
+
+#converting episode and season to a combined column
+
+episode_character_counts <- episode_character_counts %>%
+  mutate(episode_combined = factor(paste(season, episode, sep = "-")))
+
+episode_character_counts
+
+```
+
+```{r}
+#graphing the main characters vs minor characters per episode 
+
+ggplot(episode_character_counts) +
+  geom_col(aes(x = episode_combined, y = num_main_characters, fill = "Main Characters"), position = position_dodge()) +
+  geom_col(aes(x = episode_combined, y = num_minor_characters, fill = "Minor Characters"), position = position_dodge()) +
+  scale_fill_manual(values = c("Main Characters" = "steelblue", "Minor Characters" = "lightblue")) +
+  labs(title = "Number of Main vs. Minor Characters per Episode", x = "Episode", y = "Count", fill = "Character Type") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+#use seperate plots per season
+```
+
+```{r}
+#seperate plots for each season
+
+#plot for season 1 
+
+season1_character_count <- episode_character_counts %>% filter(season == 1)
+
+ggplot(season1_character_count, aes(x = episode, y = count, fill = character_type)) +
+  geom_col(aes(y = num_main_characters, fill = "Main Characters"), position = "dodge") +
+  geom_col(aes(y = num_minor_characters, fill = "Minor Characters"), position = "dodge") +
+  scale_fill_manual(values = c("Main Characters" = "steelblue", "Minor Characters" = "lightblue")) +
+  labs(title = "Number of Main vs. Minor Characters per Episode (Season 1)", x = "Episode", y = "Count", fill = "Character Type") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+```{r}
+
+#creating data that can be used for ML model 
+
+main_characters <- c("Michael", "Jim", "Pam", "Dwight", "Ryan", "Andy")
+
+# main vs minor character col 
+temp_office_data <- clean_office_data %>%
+  mutate(character_type = ifelse(character %in% main_characters, "Main", "Minor"))
+
+# calculates the average sentiment score for each episode in each season and counts the # of main and minor characters
+episode_summary <- temp_office_data %>%
+  group_by(season, episode) %>%
+  summarize(
+    average_sentiment_score = mean(c(sentiment_analysis_score, sentimentr_score, syuzhet_score), na.rm = TRUE),
+    main_character_lines = sum(character_type == "Main"),
+    minor_character_lines = sum(character_type == "Minor")
+  )
+
+# prints the data
+print(episode_summary)
+
+#try averaging sentiment_analysis_score instead of all three columns***
+```
+
+```{r}
+
+#creating an anova test 
+
+anova_test <- aov(data = episode_summary, average_sentiment_score ~ main_character_lines + minor_character_lines)
+summary(anova_test)
+#TukeyHSD(anova_test)
+
+```
+
+```{r}
+
+#graphing data to find a relation 
+
+#main character vs average sentiment 
+ggplot(episode_summary, aes(x = main_character_lines, y = average_sentiment_score)) +
+  geom_point() +
+  geom_smooth(method = "lm", color = "blue") +
+  labs(title = "Main Character Lines vs. Average Sentiment Score",
+       x = "Number of Main Character Lines",
+       y = "Average Sentiment Score") +
+  theme_minimal()
+
+# minor character vs average sentiment 
+ggplot(episode_summary, aes(x = minor_character_lines, y = average_sentiment_score)) +
+  geom_point() +
+  geom_smooth(method = "lm", color = "blue") +
+  labs(title = "Minor Character Lines vs. Average Sentiment Score",
+       x = "Number of Minor Character Lines",
+       y = "Average Sentiment Score") +
+  theme_minimal()
+```
+
+```{r}
+
+#creating a linear regression model 
+
+#load libraries 
+library(caTools)
+library(readr)
+
+#filter data to include only necessary columns 
+filtered_episode_summary <- episode_summary[, c('average_sentiment_score', 'main_character_lines', 'minor_character_lines')]
+
+set.seed(123)
+
+#split the data into training and testing 
+split <- sample.split(filtered_episode_summary$average_sentiment_score, SplitRatio = 0.8)
+train_data <- subset(filtered_episode_summary, split == TRUE)
+test_data <- subset(filtered_episode_summary, split == FALSE)
+
+lr_model <- lm(average_sentiment_score ~ main_character_lines + minor_character_lines, data = train_data)
+
+
+model_summary <- summary(lr_model)
+print(model_summary)
+```
+
+```{r}
+
+#test the model 
+pred <- predict(lr_model, newdata = test_data)
+
+# mse and r squared 
+mse <- mean((test_data$average_sentiment_score - pred)^2)
+r_squared <- summary(lr_model)$r.squared
+
+# print the eval metrics 
+cat('Mean Squared Error:', mse, '\n')
+cat('R-squared:', r_squared, '\n')
+```
+
+```{r}
+
+#predicted vs actual data graph 
+
+ggplot(test_data, aes(x = pred, y = average_sentiment_score)) +
+  geom_point() +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +
+  labs(title = "Predictions vs. Actual Sentiment Scores", x = "Predicted Sentiment Score", y = "Actual Sentiment Score") +
+  theme_minimal()
+```
+
+```{r}
+
+#seperate df w/ main_chracter_lines_category which categorizes the number of main cahracter lines
+
+episode_summary_plot <- episode_summary %>%
+  mutate(main_character_lines_category = cut(main_character_lines, breaks = c(0, 5, 10, 15, 20, Inf), labels = c("0-4", "5-9", "10-14", "15-19", "20+"), right = FALSE))
+
+#average sentiment score by main character lines
+
+ggplot(episode_summary_plot, aes(x = main_character_lines_category, y = average_sentiment_score)) +
+  geom_boxplot(fill = "lightblue", color = "black") +
+  labs(title = "Average Sentiment Score by Number of Main Character Lines",
+       x = "Number of Main Character Lines (Category)",
+       y = "Average Sentiment Score") +
+  theme_minimal()
+
+episode_summary <- subset(episode_summary, select = -c(main_character_lines_category))
+episode_summary
+```
+
+```{r}
+#adding the imdb rating as a factor 
+
+episode_summary <- temp_office_data %>%
+  group_by(season, episode) %>%
+  summarize(
+    average_sentiment_score = mean(c(sentiment_analysis_score, sentimentr_score, syuzhet_score), na.rm = TRUE),
+    main_character_lines = sum(character_type == "Main"),
+    minor_character_lines = sum(character_type == "Minor"),
+    imdb_rating = mean(imdb_rating, na.rm = TRUE)
+  )
+
+episode_summary
+```
+
+```{r}
+
+#anova test with imdb ratings 
+
+anova_test <- aov(data = episode_summary, average_sentiment_score ~ main_character_lines + minor_character_lines + imdb_rating)
+summary(anova_test)
+
+#visualizing the imdb scores vs sentiment 
+
+ggplot(episode_summary, aes(x = imdb_rating, y = average_sentiment_score)) +
+  geom_point() +
+  geom_smooth(method = "lm", color = "blue") +
+  labs(title = "IMDB Rating vs. Average Sentiment Score",
+       x = "IMDB Score",
+       y = "Average Sentiment Score") +
+  theme_minimal()
+```
+
+```{r}
+
+#creating a model with imdb scores as a factor 
+
+#filter data to include only necessary columns 
+filtered_episode_summary_imdb <- episode_summary[, c('average_sentiment_score', 'main_character_lines', 'minor_character_lines', 'imdb_rating')]
+
+set.seed(123)
+
+#split the data into training and testing 
+split <- sample.split(filtered_episode_summary_imdb$average_sentiment_score, SplitRatio = 0.8)
+train_data <- subset(filtered_episode_summary_imdb, split == TRUE)
+test_data <- subset(filtered_episode_summary_imdb, split == FALSE)
+
+lr_model_imdb <- lm(average_sentiment_score ~ main_character_lines + minor_character_lines + imdb_rating, data = train_data)
+
+
+model_summary <- summary(lr_model_imdb)
+print(model_summary)
+```
+
+```{r}
+#test the model 
+pred <- predict(lr_model_imdb, newdata = test_data)
+
+# mse and r squared 
+mse <- mean((test_data$average_sentiment_score - pred)^2)
+r_squared <- summary(lr_model_imdb)$r.squared
+
+# print the eval metrics 
+cat('Mean Squared Error:', mse, '\n')
+cat('R-squared:', r_squared, '\n')
+```
+
+```{r}
+#predicted vs actual data graph 
+
+ggplot(test_data, aes(x = pred, y = average_sentiment_score)) +
+  geom_point() +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +
+  labs(title = "Predictions vs. Actual Sentiment Scores", x = "Predicted Sentiment Score", y = "Actual Sentiment Score") +
+  theme_minimal()
+```
+
+```{r}
+
+#interaction features and squaring features 
+
+episode_summary <- episode_summary %>%
+  mutate(
+    interaction_factor = main_character_lines * minor_character_lines,
+    main_character_lines_squared = main_character_lines^2,
+    minor_character_lines_squared = minor_character_lines^2,
+    season_factor = as.factor(season)
+  )
+
+episode_summary
+
+#spliting training and testing data 
+
+split <- sample.split(episode_summary$average_sentiment_score, SplitRatio = 0.8)
+train_data <- subset(episode_summary, split == TRUE)
+test_data <- subset(episode_summary, split == FALSE)
+
+lr_model_interaction <- lm(average_sentiment_score ~ main_character_lines + minor_character_lines + imdb_rating + interaction_factor + main_character_lines_squared + minor_character_lines_squared + season_factor, data = train_data)
+
+
+model_summary <- summary(lr_model_interaction)
+print(model_summary)
+```
+
+```{r}
+
+#test the model 
+pred <- predict(lr_model_interaction, newdata = test_data)
+
+# mse and r squared 
+mse <- mean((test_data$average_sentiment_score - pred)^2)
+r_squared <- summary(lr_model_interaction)$r.squared
+
+# print the eval metrics 
+cat('Mean Squared Error:', mse, '\n')
+cat('R-squared:', r_squared, '\n')
+```
+
+```{r}
+
+ggplot(test_data, aes(x = pred, y = average_sentiment_score)) +
+  geom_point() +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +
+  labs(title = "Predictions vs. Actual Sentiment Scores", x = "Predicted Sentiment Score", y = "Actual Sentiment Score") +
+  theme_minimal()
+```
+
+```{r}
+
+#rmse calc 
+
+rmse <- sqrt(mean((test_data$average_sentiment_score - pred)^2))
+
+cat('Root Mean Squared Error:', rmse, '\n')
+
+mae <- mean(abs(test_data$average_sentiment_score - pred))
+
+cat('Mean Absolute Error:', rmse, '\n')
+
+```
+
+```{r}
+install.packages('gifski')
+install.packages('png')
+```
+
+```{r}
+
+#adding animation to the box plot
+
+#install.packages('gganimate')
+library(ggplot2)
+library(gganimate)
+library(gifski)
+library(png)
+
+animation <- ggplot(top10_clean_office_data, aes(x = reorder(character, sentiment_analysis_score), y = sentiment_analysis_score, fill = character_type)) +
+  geom_boxplot(fatten = 3,  
+               color = "black") +
+  labs(title = "Sentiment Score by Character", x = "Character", y = "Sentiment Score") +
+  scale_fill_manual(values = c("Main" = "steelblue", "Minor" = "lightblue"), name = "Character Type") +
+  theme_minimal() +
+  theme(
+    text = element_text(family = "AppleGothic"), 
+    axis.text.x = element_text(angle = 45, hjust = 1, family = "AppleGothic"),
+    axis.text.y = element_text(family = "AppleGothic"), 
+        plot.title = element_text(hjust = 0.5, family = "AppleGothic"), 
+        legend.text = element_text(family = "AppleGothic"), 
+        legend.title = element_text(family = "AppleGothic"), 
+        ) + 
+  # gganimate
+  transition_states(
+    season,
+    transition_length = 2,
+    state_length = 1
+  ) +
+  enter_fade() + 
+  exit_shrink() +
+  ease_aes('sine-in-out')
+
+animate(animation, renderer = gifski_renderer("sentiment_score_by_character.gif"))
+
+#found by searching animation.gif in downloads folder > open in chrome to see animation not preview 
+```
+
+```{r}
+
+#anova test comparing last two lr models 
+
+#lr model w/ imdb vs lr model w/ interaction factors
+anova(lr_model_imdb, lr_model_interaction)
+```
+
+RSS is lower for LR_interaction -\> Interaction model fits the data better
+
+p-value is less than the significance level (0.01) for the interaction model -\> null hypothesis can be rejected
+
+```{r}
+
+#anova test comparing lr models 
+
+#lr model w/ imdb vs lr model w/out imdb ratings 
+anova(lr_model_imdb, lr_model)
+```
+
+RSS is lower for lr w/out imdb rating -\> model w/out imdb fits the data better
+
+sum of sq is negative -\> imdb ratings negatively affecting model performance
+
+p-value is not less than 0.05 -\> null hypothesis is not rejected
+
+```{r}
+
+#anova test comparing lr models
+
+#lr model w/out imdb vs lr model w/ interaction factors
+anova(lr_model, lr_model_interaction)
+```
+
+RSS is lower for LR_interaction -\> Interaction model fits the data better
+
+p-value is less than the significance level (0.01) for the interaction model -\> null hypothesis can be rejected (null hypothesis: additional params in interaction model do not improve the model w/out imdb ratings)
+
+```{r}
+
+#anova test comparing lr models 
+
+#lr model w/out imdb vs lr model w/ imdb ratings 
+anova(lr_model, lr_model_imdb)
+```
+
+RSS is lower for LR_imdb -\> lr model with imdb fits the data better
+
+p-value is less than the significance level (0.01) for the interaction model -\> null hypothesis cannot be rejected (null hypothesis: imdb ratings do not help model performance)
+
+```{r}
+
+#remove imdb_rating, main and minor character lines squared 
+
+filtered_episode_summary_data <- episode_summary[, c('average_sentiment_score', 'main_character_lines', 'minor_character_lines', 'interaction_factor', 'season_factor')]
+
+split <- sample.split(filtered_episode_summary_data$average_sentiment_score, SplitRatio = 0.8)
+train_data <- subset(filtered_episode_summary_data, split == TRUE)
+test_data <- subset(filtered_episode_summary_data, split == FALSE)
+
+lr_model_w_out_imdb_squares <- lm(average_sentiment_score ~ main_character_lines + minor_character_lines + interaction_factor + + season_factor, data = train_data)
+
+
+model_summary <- summary(lr_model_w_out_imdb_squares)
+print(model_summary)
+```
+
+```{r}
+
+#test the model 
+pred <- predict(lr_model_w_out_imdb_squares, newdata = test_data)
+
+# mse and r squared 
+mse <- mean((test_data$average_sentiment_score - pred)^2)
+r_squared <- summary(lr_model_w_out_imdb_squares)$r.squared
+
+
+# print the eval metrics 
+cat('Mean Squared Error:', mse, '\n')
+cat('R-squared:', r_squared, '\n')
+
+rmse <- sqrt(mse)
+
+cat('Root Mean Squared Error:', rmse, '\n')
+
+mae <- mean(abs(test_data$average_sentiment_score - pred))
+
+cat('Mean Absolute Error:', mae, '\n')
+
+#Mean Squared Error: 0.001252799 
+#R-squared: 0.2371721 
+#from previous model with interaction and imdb ratings
+```
+
+```{r}
+
+#graphing the model
+ggplot(test_data, aes(x = pred, y = average_sentiment_score)) +
+  geom_point() +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +
+  labs(title = "Predictions vs. Actual Sentiment Scores", x = "Predicted Sentiment Score", y = "Actual Sentiment Score") +
+  theme_minimal() +
+  theme(
+    text = element_text(family = "AppleGothic"), 
+    axis.text.x = element_text(family = "AppleGothic"),
+    axis.text.y = element_text(family = "AppleGothic"), 
+        plot.title = element_text(family = "AppleGothic"), 
+        legend.text = element_text(family = "AppleGothic"), 
+        legend.title = element_text(family = "AppleGothic"), 
+        )
+```
+
+```{r}
+
+#anova test comparing lr models
+
+#lr model w/ imdb and squared lines vs lr model w/out imdb and squared lines (both have interaction factors)
+
+anova_results <- anova(lr_model_interaction, lr_model_w_out_imdb_squares)
+```
+
+RSS is slightly lower for LR_interaction -\> lr model with imdb and squared lines fits the data better
+
+p-value is greater than the significance level (0.05) for the interaction model -\> null hypothesis cannot be rejected (null hypothesis: imdb ratings, main and minor lines squared do not improve the model fit)
+
+model w/out imdb and squared factors is the best
+
+```{r}
+
+rss1 <- anova_results$`RSS`[1]
+rss2 <- anova_results$`RSS`[2]
+
+df1 <- anova_results$Df[1]
+df2 <- anova_results$Df[2]
+
+anova_data <- data.frame(
+  Model = c("Model 1", "Model 2"),
+  RSS = c(rss1, rss2),
+  DF = c(df1, df2)
+)
+
+ggplot(anova_data, aes(x = Model, y = RSS, fill = Model)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = round(RSS, 5)), vjust = -0.5, color = "black", size = 4) +
+  labs(title = "ANOVA Test Results: RSS Comparison",
+       x = "Model",
+       y = "Residual Sum of Squares (RSS)") +
+  scale_y_continuous(limits = c(0, max(anova_data$RSS) * 1.1)) +
+  scale_fill_manual(values = c("Model 1" = "darkblue", "Model 2" = "lightblue")) +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+```{r}
+#anova test comparing lr models
+
+#lr model w/ imdb and squared lines vs lr model w/out imdb and squared lines (both have interaction factors)
+
+anova_results <- anova(lr_model, lr_model_w_out_imdb_squares)
+
+
+rss1 <- anova_results$`RSS`[1]
+rss2 <- anova_results$`RSS`[2]
+
+df1 <- anova_results$Df[1]
+df2 <- anova_results$Df[2]
+
+anova_data <- data.frame(
+  Model = c("Initial Model", "Final Model"),
+  RSS = c(rss1, rss2),
+  DF = c(df1, df2)
+)
+
+ggplot(anova_data, aes(x = Model, y = RSS, fill = Model)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = round(RSS, 5)), vjust = -0.5, color = "black", size = 4) +
+  labs(title = "ANOVA Test Results: RSS Comparison",
+       x = "Model",
+       y = "Residual Sum of Squares (RSS)") +
+  scale_y_continuous(limits = c(0, max(anova_data$RSS) * 1.1)) +
+  scale_fill_manual(values = c("Initial Model" = "darkblue", "Final Model" = "lightblue")) +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+```{r}
+
+#graphing r squared values 
+
+r_squared_data <- data.frame(
+  Model = c("Initial Model", "Final Model"),
+  R_squared = c(0.0217543, 0.2342289)
+)
+
+
+ggplot(r_squared_data, aes(x = Model, y = R_squared, fill = Model)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = round(R_squared, 4)), vjust = -0.5, color = "black", size = 4) +
+  labs(title = "R-squared Values of Initial vs. Final Model",
+       x = "Model",
+       y = "R-squared Value") +
+  scale_y_continuous(limits = c(0, max(r_squared_data$R_squared) * 1.1)) +
+  scale_fill_manual(values = c("Initial Model" = "darkblue", "Final Model" = "lightblue")) +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
