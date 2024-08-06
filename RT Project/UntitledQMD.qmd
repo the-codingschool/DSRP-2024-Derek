@@ -1,0 +1,12 @@
+```{r}
+getwd()
+```
+
+```{r}
+fileName <- "/Users/renatetoldo/Derek_Project/Data/office_sentiment .csv"
+file.exists(fileName)
+
+data <- read.csv(fileName)
+head(data)
+```
+
