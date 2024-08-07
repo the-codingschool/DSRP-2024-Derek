@@ -16,7 +16,7 @@ summary_data <- data %>%
   group_by(character_name) %>%
   summarise(total_appearances = n()) %>%
   arrange(desc(total_appearances))
-summary_data
+print(summary_data, n = 150)
 
 ##Main Characters Michael, Dwight, Jim, Pam, Andy
 
