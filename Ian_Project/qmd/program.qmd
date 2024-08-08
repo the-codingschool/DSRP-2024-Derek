@@ -1,18 +1,29 @@
+---
+title: "Analysis of the effect of Character Sentiment on TV show ratings"
+execute:
+  echo: false
+format: html
+editor: visual
+---
+
+## Abstract
 
 
-Libraries 
+
 
 ```{r}
+#| output: false
 library(dplyr)
 library(ggplot2)
+original_data <- read.csv("../../data/office_sentiment .csv") 
 ```
 
 
 
-Getting data and cleaning it
+Cleaning Data
 
 ```{r}
-original_data <- read.csv("../../data/office_sentiment .csv") 
+#| echo: true
 data <- na.omit(original_data)
 data <- data |> mutate(average_score = sentimentr_score)
 ```
@@ -36,7 +47,12 @@ average_episode <- new_data |>
   summarise(mean_score = mean(average_score, na.rm = TRUE)) |>
   left_join(new_data |> select(episode_index, imdb_rating) |> distinct(), by = "episode_index")
 
-ggplot(average_episode, title="All Characters", aes(x = mean_score, y = imdb_rating)) + geom_point() + geom_smooth(method = "lm", se = FALSE)
+ggplot(average_episode, title="All Characters", aes(x = mean_score, y = imdb_rating)) + geom_point() + geom_smooth(formula = y ~ x,method = "lm", se = FALSE)
+```
+
+filter to only main characters
+
+```{r}
 
 data <- data |>
   group_by(character) |>
@@ -50,7 +66,5 @@ average_episode <- new_data |>
   group_by(episode_index) |>
   summarise(mean_score = mean(average_score, na.rm = TRUE)) |>
   left_join(new_data |> select(episode_index, imdb_rating) |> distinct(), by = "episode_index")
-ggplot(average_episode,aes(x = mean_score, y = imdb_rating)) + geom_point() + geom_smooth(method = "lm", se = FALSE) +labs(title="Only Main Characters")
+ggplot(average_episode,aes(x = mean_score, y = imdb_rating)) + geom_point() + geom_smooth(formula = y ~ x, method = "lm", se = FALSE) +labs(title="Only Main Characters")
 ```
-
-filter to only main characters
