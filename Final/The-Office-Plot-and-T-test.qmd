@@ -1,0 +1,44 @@
+---
+title: "The Office: IMDB Score VS Writer"
+author: "Gioia Marchi"
+format: html
+editor: visual
+---
+
+```{r}
+library(tidyverse)
+library(dplyr)
+library(stringr)
+library(MLmetrics)
+
+```
+
+# Writer-Actors vs. Writer-Only: How Different Writer Categories Influence IMDb Ratings in *The Office*
+
+## Abstract
+
+The research question I set out to answer was: “How do episodes written by actor-writers compare to those written by writers-only in terms of IMDb ratings?” This study aims to explore how writers who are also actors compare to those who are solely writers in terms of episode ratings. This question is particularly interesting because it delves into whether the dual roles of being both a writer and an actor provide unique information that enhance the storytelling and viewer engagement of the series. Understanding these dynamics is important in identifying the factors that contribute to the show's success and potentially applying these insights to other TV shows or projects.
+
+To address this question, I utilized a data set from *The Office* containing information on episodes, writers, actors, IMDb ratings, and sentiment analysis scores. The data set underwent data cleaning to remove duplicates and irrelevant data, ensuring accuracy in my analysis. I created a new column which categorized the writer data into two main groups: "Writer-Actor" and "Writer-Only." The primary variables considered were the IMDb rating and writer category. Using statistical methods, including a t-test, and I analyzed the differences in average IMDb scores between these categories. The data set comprised over 200 episodes, allowing me to perform a comprehensive analysis on a large sample size.
+
+## Background
+
+"The Office" is a widely known television series known for its distinctive humor and rich character development. The show stands outs in many ways but a more unique reason includes its mix of writers, some of whom also act in the series, alongside writers who focus solely on script writing. This blend of roles prompted an exploration into how these writer categories might influence the show's reception and therefore IMDb ratings. By analyzing episodes based on whether they were written by actor-writers or writer-only, this study aims to uncover how these roles impact audience perception and ratings.
+
+### Research Question and Hypothesis
+
+**Research Question**: How do episodes written by actor-writers compare to those written by writers-only in terms of IMDb ratings?
+
+**Hypothesis**:
+
+-   **Null Hypothesis**: There is no difference in IMDb ratings between episodes written by actor-writers and writer-only contributors.
+
+-   (Ho: Difference in ratings =/= 0)
+
+-   **Alternative Hypothesis**: There is a difference in IMDb ratings between episodes written by actor-writers and writer-only contributors.
+
+-   (Ha: Difference in ratings == 0)
+
+    This investigation is important for understanding how the overlap of creative roles might affect television success. Data for this analysis comes from IMDb ratings and writer type, providing a basis for examining the influence of writer roles on the show's success.
+
+## 

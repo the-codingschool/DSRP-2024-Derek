@@ -1,0 +1,257 @@
+---
+title: "All Practice Plots"
+author: "Gioia Marchi"
+format: html
+editor: visual
+---
+
+## Code
+
+```{r}
+library(tidyverse)
+library(dplyr)
+library(stringr)
+library(MLmetrics)
+
+office_data <- readRDS("data/clean_office_data.rds")
+
+```
+
+### Q: Significant difference in sentiment scores between characters across seasons:
+
+```{r}
+
+#find average for each characters sentiment score per season
+result <- office_data_split %>%
+  group_by(character, season) %>%
+  summarize(mean_score = mean(sentimentAnalysis_score, na.rm = TRUE)) %>%
+  filter(mean_score != 0)
+
+#create a bar graph
+ggplot(result, aes(x = character, y = mean_score, fill = season)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Avg. Sentiment Score by Character Across Seasons",
+       x = "Character",
+       y = "Average Sentiment Score") 
+
+```
+
+### Q: Significant difference in relationship between avg imdb rating and avg sentiment:
+
+```{r}
+#changing IMDb scale rating to -1 to 1
+office_data <- office_data %>%
+  mutate(rescaled_rating = (imdb_rating / 10) * 2 - 1)
+
+#summarize the av imbd and avg sentiment
+season_summary <- office_data %>%
+  group_by(season) %>%
+  summarize(
+    avg_sentiment = mean(sentimentAnalysis_score, na.rm = TRUE),
+    avg_rescaled_rating = mean(rescaled_rating, na.rm = TRUE)
+  )
+
+#create the combined plot
+ggplot(season_summary) +
+  geom_point(aes(x = season, y = avg_sentiment, color = "Average Sentiment"), size = 1) +
+  geom_point(aes(x = season, y = avg_rescaled_rating, color = "Average IMDb Rating"), size = 1) 
+
+```
+
+### Q: Do episodes with a certain writers have different IMDb ratings?
+
+```{r}
+#average imdb score for each writer per episode
+result <- office_data_split %>%
+  group_by(writer) %>%
+  summarize(mean_score = mean(imdb_rating, na.rm = TRUE), .groups = 'drop') %>%
+  filter(mean_score != 0)
+
+#bar graph
+ggplot(result, aes(x = writer, y = mean_score)) +
+  geom_bar(stat = "identity", fill = "pink") +
+  labs(
+    title = "Avg. IMDb Rating by Writer",
+    x = "Writer",
+    y = "Avg. IMDb Rating"
+  ) 
+
+```
+
+### Q: Significant difference in sentiment scores for Jim across seasons
+
+```{r}
+#filter for one character
+character_name <- "Jim"
+character_data <- office_data %>%
+  filter(grepl(character_name, character, ignore.case = TRUE))
+
+#summarize the avg sentiment per season
+character_season_summary <- character_data %>%
+  group_by(season) %>%
+  summarize(mean_sentiment = mean(sentimentAnalysis_score, na.rm = TRUE))
+
+#create plot
+ggplot(character_season_summary, aes(x = season, y = mean_sentiment)) +
+  geom_point(color = "red", size = 3) +
+  labs(
+       x = "Season",
+       y = "Avg. Sentiment Score")
+
+```
+
+### Q: Do episodes with certain writers have different IMDb ratings?
+
+```{r}
+#calculate the average IMDb score for each writer
+result <- office_data_split %>%
+  group_by(writer) %>%
+  summarize(mean_score = mean(imdb_rating, na.rm = TRUE), .groups = 'drop') %>%
+  filter(mean_score != 0) %>%
+  arrange(mean_score) # Sort by mean_score for ordering
+
+#graphing
+ggplot(result, aes(x = reorder(writer, mean_score), y = mean_score)) +
+  geom_point(color = "darkblue", size = 3) +
+  geom_segment(aes(xend = writer, yend = 0), color = "lightblue", linetype = "dotted") +
+  coord_flip() +
+  labs(
+    title = "Average IMDb Rating by Writer",
+    x = "Writer",
+    y = "Average IMDb Rating"
+  ) 
+
+```
+
+### Q: Predict IMDb rating based on the involvement of Greg Daniels as a writer.
+
+```{r}
+#filter data for episodes written by Greg Daniels
+greg_daniels_data <- office_data_split %>%
+  filter(writer == "Greg Daniels")
+
+#calculate the average IMDb rating for each season
+season_avg_imdb <- office_data_split %>%
+  group_by(season) %>%
+  summarize(avg_imdb_rating = mean(imdb_rating, na.rm = TRUE))
+
+#merge the season average IMDb ratings with Greg Daniels' data
+greg_daniels_data <- greg_daniels_data %>%
+  left_join(season_avg_imdb, by = "season")
+
+#split data into training and testing sets (80-20 split)
+set.seed(123) 
+train_indices <- sample(seq_len(nrow(greg_daniels_data)), size = 0.8 * nrow(greg_daniels_data))
+train_data <- greg_daniels_data[train_indices, ]
+test_data <- greg_daniels_data[-train_indices, ]
+
+#build a linear regression model using season average ratings
+model <- lm(imdb_rating ~ avg_imdb_rating, data = train_data)
+
+#make predictions on the test data
+predictions <- predict(model, test_data)
+
+#plot the actual vs predicted IMDb ratings
+ggplot(data = test_data, aes(x = imdb_rating, y = predictions)) +
+  geom_point(color = "darkblue", size = 3) +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "red") +
+  labs(
+    title = "Actual vs Predicted IMDb Ratings for Greg Daniels",
+    x = "Actual IMDb Rating",
+    y = "Predicted IMDb Rating"
+  ) 
+```
+
+### Q: Impact of each writer on IMDB score:
+
+```{r}
+#build a linear regression model
+linear_model <- lm(imdb_rating ~ writer, data = office_data_split)
+
+#summary of the linear regression model
+model_summary <- summary(linear_model)
+print(model_summary)
+
+#RMSE for the model
+predictions <- predict(linear_model, office_data_split)
+actuals <- office_data_split$imdb_rating
+rmse_value <- RMSE(predictions, actuals)
+cat("Root Mean Square Error (RMSE):", rmse_value, "\n")
+
+ggplot(data = office_data_split, aes(x = actuals, y = predictions)) +
+  geom_point(alpha = 0.6, color = "blue") +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "red") +
+  labs(
+    title = "Actual vs. Predicted IMDb Ratings",
+    x = "Actual IMDb Rating",
+    y = "Predicted IMDb Rating"
+  ) 
+
+#coeff
+coefficients <- coef(linear_model)
+writers <- names(coefficients)[-1]
+coef_values <- coefficients[-1]
+
+data_coef <- data.frame(
+  writer = writers,
+  coefficient = coef_values
+)
+
+ggplot(data_coef, aes(x = reorder(writer, coefficient), y = coefficient)) +
+  geom_bar(stat = "identity") +
+  labs(
+    title = "Impact of Each Writer on IMDb Ratings",
+    x = "Writer",
+    y = "Coefficient"
+  ) 
+```
+
+### Q: IMDB score by writer:
+
+```{r}
+#split the data
+set.seed(123)
+split <- sample.split(office_data_split$imdb_rating, SplitRatio = 0.8)
+train_data <- subset(office_data_split, split == TRUE)
+test_data <- subset(office_data_split, split == FALSE)
+
+formula <- imdb_rating ~ writer + sentimentAnalysis_score
+
+#linear regression model
+lm_model <- lm(formula, data = train_data)
+
+#predictions on the test data
+predictions <- predict(lm_model, newdata = test_data)
+
+#mse
+mse <- mean((test_data$imdb_rating - predictions)^2, na.rm = TRUE)
+
+#mae
+mae <- mean(abs(test_data$imdb_rating - predictions), na.rm = TRUE)
+
+#r-squared
+r_squared <- summary(lm_model)$r.squared
+
+#print
+cat("Mean Squared Error (MSE):", mse, "\n")
+cat("Mean Absolute Error (MAE):", mae, "\n")
+cat("R-squared:", r_squared, "\n")
+
+#histogram of imdb scores
+ggplot(office_data_split, aes(x = imdb_rating)) +
+  geom_histogram(binwidth = 0.5, fill = "skyblue", color = "black") +
+  theme_minimal() +
+  labs(title = "Distribution of imdb Scores",
+       x = "imdb Score",
+       y = "Frequency")
+
+#boxplot of imdb scores by writer
+ggplot(office_data_split, aes(x = writer, y = imdb_rating)) +
+  geom_boxplot(fill = "lightgreen") +
+  theme_minimal() +
+  labs(title = "imdb Scores by Writer",
+       x = "Writer",
+       y = "imdb Score") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
