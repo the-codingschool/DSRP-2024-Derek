@@ -65,14 +65,20 @@ results <- data %>%
 
 merged_df$imdb_rating <- paste(results$imdb_rating)
 merged_df$imdb_rating <- as.numeric(merged_df$imdb_rating)
+summary(merged_df$Michael)
+summary(merged_df$Michael2)
+summary(merged_df$Michael3)
 
+merged_df[10,"Michael"]
+
+##Cringiest Episodes: 7.1, 8.4, 6.13, 1.2, 3.6, 5.13, 3.1, 3.16, 4.13, 
 
 set.seed(42)
 datas <- merged_df[, c("imdb_rating", "Jim", "Jim2", "Jim3", "Dwight", "Dwight2", "Dwight3", "Michael", "Michael2", "Michael3", "Pam", "Pam2", "Pam3", "Andy", "Andy2", "Andy3", "season")]
 split <- sample.split(datas$imdb_rating, SplitRatio = 0.8)
 train_data <- subset(datas, split == TRUE)
 test_data <- subset(datas, split == FALSE)
-lr_model <- lm(imdb_rating ~ Jim + Jim2 + Jim3 + Dwight + Dwight2 + Dwight3 + Michael + Michael2 + Michael3 + Pam + Pam2 + Pam3 + Andy + Andy2 + Andy3, data = train_data)
+lr_model <- lm(imdb_rating ~ Andy + Andy2 + Andy3 , data = train_data)
 pred <- predict(lr_model, newdata = test_data)
 ggplot(test_data, aes(x = imdb_rating, y = pred, color = factor(season))) +
   geom_point() +

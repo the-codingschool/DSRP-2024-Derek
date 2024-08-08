@@ -15,7 +15,7 @@ result <- data %>%
   group_by(character_name, season, episode) %>% 
   filter(sentimentAnalysis_score != 0) %>%
   summarise(mean_value = mean(sentimentAnalysis_score)) %>%
-  filter(season == 3) #Edit this and below to change season
+  filter(season == 9) #Edit this and below to change season
 
 resultr <- data %>%
   mutate(character_name_plus_2 = paste(character_name, "2", sep = ''))
@@ -23,7 +23,7 @@ resultr <- resultr %>%
   group_by(character_name_plus_2, season, episode) %>% 
   filter(sentimentr_score != 0) %>%
   summarise(mean_value = mean(sentimentr_score)) %>%
-  filter(season == 3) #Edit this too
+  filter(season == 9) #Edit this too
 
 resultz <- data %>%
   mutate(character_name_plus_3 = paste(character_name, "3", sep = ''))
@@ -31,7 +31,7 @@ resultz <- resultz %>%
   group_by(character_name_plus_3, season, episode) %>% 
   filter(syuzhet_score != 0) %>%
   summarise(mean_value = mean(syuzhet_score)) %>%
-  filter(season == 3) #Edit this too
+  filter(season == 9) #Edit this too
   
 df_wide <- result %>%
   pivot_wider(
@@ -64,7 +64,7 @@ print(merged_df)
   
 results <- data %>%
   group_by(season) %>%
-  filter(season == 3) ##Change this
+  filter(season == 9) ##Change this
 
 new_data <- results %>%
   group_by(episode, imdb_rating) %>%
@@ -79,11 +79,11 @@ print(col_v, n =25)
 print(merged_df, n = 25)
 
 set.seed(42)
-datas <- merged_df[, c("imdb_rating", "Jim", "Jim2", "Jim3")]
+datas <- merged_df[, c("imdb_rating", "Andy", "Andy2", "Andy3")]
 split <- sample.split(datas$imdb_rating, SplitRatio = 0.8)
 train_data <- subset(datas, split == TRUE)
 test_data <- subset(datas, split == FALSE)
-lr_model <- lm(imdb_rating ~ Jim + Jim2 + Jim3 , data = train_data)
+lr_model <- lm(imdb_rating ~ Andy + Andy2 + Andy3 , data = train_data)
 pred <- predict(lr_model, newdata = test_data)
 ggplot(test_data, aes(x = imdb_rating, y = pred)) +
   geom_point() +
