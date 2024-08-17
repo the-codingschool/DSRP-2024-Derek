@@ -6,6 +6,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
+<meta name="author" content="Ian Porto">
 
 <title>Analysis of the effect of Character Sentiment on TV show ratings</title>
 <style>
@@ -86,6 +87,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <div class="quarto-title-meta">
 
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Ian Porto </p>
+          </div>
+  </div>
     
   
     
@@ -98,12 +105,34 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <section id="abstract" class="level2">
 <h2 class="anchored" data-anchor-id="abstract">Abstract</h2>
-<p>Cleaning Data</p>
+<p><strong>The problem:</strong></p>
+<p>This study will try to figure out the relation between the average sentiment scores in TV show episodes and their respective IMDb rating. The data set that we will be using is the script of the TV show “The Office”.</p>
+<p><strong>The approach:</strong></p>
+<p>In order to figure out the relation, we will create graphs to find the amount that the average sentiment and IMDB rating impact each other.</p>
+<p><strong>The results:</strong></p>
+<p>The study found a weak positive correlation between the the IMDb ratings and the average sentiment scores of only the main characters in the TV show “The Office”.</p>
+<p><strong>Conclusion:</strong></p>
+<p>This correlation can be used to help improve future TV shows by giving them more data on what audiences like in the episodes of a TV series.</p>
+<p><br><br></p>
+</section>
+<section id="background" class="level2">
+<h2 class="anchored" data-anchor-id="background">Background</h2>
+<p><strong>Why this is significant:</strong></p>
+<p>This problem could help gain better insight on how media is received by audiences and how the content of the episode impacts their feelings on the episodes or series.</p>
+<p><strong>Research question:</strong></p>
+<p>What is the impact of the average character sentiment score on the IMDb rating of TV shows?</p>
+<p><strong>Hypothesis:</strong></p>
+<p>As the average character sentiment score increases, the IMDb rating of the respective episode will increase because the people who watched the episode prefer when characters in the episode are happy and have a positive sentiment.</p>
+<p><br><br></p>
+</section>
+<section id="results" class="level2">
+<h2 class="anchored" data-anchor-id="results">Results</h2>
+<p><strong>Cleaning Data</strong></p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> <span class="fu">na.omit</span>(original_data)</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">|&gt;</span> <span class="fu">mutate</span>(<span class="at">average_score =</span> sentimentr_score)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p>Rating vs Sentiment</p>
+<p><strong>Rating vs Sentiment with all characters</strong></p>
 <div class="cell">
 <div class="cell-output-display">
 <div>
@@ -113,7 +142,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 </div>
-<p>filter to only main characters</p>
+<p><strong>Rating vs sentiment with only main characters</strong></p>
 <div class="cell">
 <div class="cell-output-display">
 <div>
@@ -123,6 +152,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 </div>
+<p><strong>Sources:</strong></p>
+<p>Shrute data set modified Derek Sollberger to add sentiment score <a href="https://dsollbergerquarto.netlify.app/posts/office_sentiment/office_sentiment">https://dsollbergerquarto.netlify.app/posts/office_sentiment/office_sentiment</a></p>
+<p><strong>Acknowledgements:</strong></p>
+<p>I would like to acknowledge Derek Sollberger for providing the dataset and giving feedback and advice on the project</p>
+<p>I would like to acknowledge Renate Toldo for gibing feedback and advice on the project</p>
+<p>I would like to acknowledge Sarah Parker for leading the zoom meetings and helping throughout the program</p>
+<p>I would like to acknowledge my groupmates for giving feedback and providing me with advice during the program</p>
 </section>
 
 </main>

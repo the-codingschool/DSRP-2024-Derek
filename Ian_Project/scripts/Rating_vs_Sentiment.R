@@ -8,7 +8,7 @@ data <- data |> mutate(average_score = sentimentr_score)
 data <- data |>
   #filter(season == 5) |>
   group_by(character) |>
-  filter(n() > 45) |>
+  filter(n() > 55) |>
   ungroup()
 #Episode score vs Episode rating
 episode_data <- data |> 

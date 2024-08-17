@@ -1,5 +1,6 @@
 ---
 title: "Analysis of the effect of Character Sentiment on TV show ratings"
+author: "Ian Porto"
 execute:
   echo: false
 format: html
@@ -8,8 +9,37 @@ editor: visual
 
 ## Abstract
 
+**The problem:**
 
+This study will try to figure out the relation between the average sentiment scores in TV show episodes and their respective IMDb rating. The data set that we will be using is the script of the TV show "The Office".
 
+**The approach:**
+
+In order to figure out the relation, we will create graphs to find the amount that the average sentiment and IMDB rating impact each other.
+
+**The results:**
+
+The study found a weak positive correlation between the the IMDb ratings and the average sentiment scores of only the main characters in the TV show "The Office".
+
+**Conclusion:**
+
+This correlation can be used to help improve future TV shows by giving them more data on what audiences like in the episodes of a TV series.
+
+<br><br>
+
+## Background
+
+**Why this is significant:**
+
+This problem could help gain better insight on how media is received by audiences and how the content of the episode impacts their feelings on the episodes or series. 
+
+**Research question:**
+
+What is the impact of the average character sentiment score on the IMDb rating of TV shows?
+
+**Hypothesis:**
+
+As the average character sentiment score increases, the IMDb rating of the respective episode will increase because the people who watched the episode prefer when characters in the episode are happy and have a positive sentiment.
 
 ```{r}
 #| output: false
@@ -20,7 +50,11 @@ original_data <- read.csv("../../data/office_sentiment .csv")
 
 
 
-Cleaning Data
+<br><br>
+
+## Results
+
+**Cleaning Data**
 
 ```{r}
 #| echo: true
@@ -28,8 +62,8 @@ data <- na.omit(original_data)
 data <- data |> mutate(average_score = sentimentr_score)
 ```
 
+**Rating vs Sentiment with all characters**
 
-Rating vs Sentiment 
 ```{r}
 filtered_data <- data |>
   group_by(character) |>
@@ -50,10 +84,9 @@ average_episode <- new_data |>
 ggplot(average_episode, title="All Characters", aes(x = mean_score, y = imdb_rating)) + geom_point() + geom_smooth(formula = y ~ x,method = "lm", se = FALSE)
 ```
 
-filter to only main characters
+**Rating vs sentiment with only main characters**
 
 ```{r}
-
 data <- data |>
   group_by(character) |>
   filter(n() > 45) |>
@@ -66,5 +99,21 @@ average_episode <- new_data |>
   group_by(episode_index) |>
   summarise(mean_score = mean(average_score, na.rm = TRUE)) |>
   left_join(new_data |> select(episode_index, imdb_rating) |> distinct(), by = "episode_index")
-ggplot(average_episode,aes(x = mean_score, y = imdb_rating)) + geom_point() + geom_smooth(formula = y ~ x, method = "lm", se = FALSE) +labs(title="Only Main Characters")
+ggplot(average_episode,aes(x = mean_score, y = imdb_rating)) + geom_point() + geom_smooth(formula = y ~ x, method = "lm", se = FALSE)
 ```
+
+
+**Sources:**
+
+Shrute data set modified Derek Sollberger to add sentiment score
+<a href="https://dsollbergerquarto.netlify.app/posts/office_sentiment/office_sentiment">https://dsollbergerquarto.netlify.app/posts/office_sentiment/office_sentiment</a>
+
+**Acknowledgements:**
+
+I would like to acknowledge Derek Sollberger for providing the dataset and giving feedback and advice on the project
+
+I would like to acknowledge Renate Toldo for gibing feedback and advice on the project
+
+I would like to acknowledge Sarah Parker for leading the zoom meetings and helping throughout the program
+
+I would like to acknowledge my groupmates for giving feedback and providing me with advice during the program
