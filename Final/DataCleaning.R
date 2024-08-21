@@ -1,39 +1,42 @@
-# Load necessary libraries
+#load libraries
 library(tidyverse)
 library(dplyr)
 library(stringr)
+library(MLmetrics)
 
-# Load the dataset
 office_data <- read.csv("data/office_sentiment .csv", stringsAsFactors = FALSE)
 
-# Examine the structure and summary of the dataset
+#structure and summary
 str(office_data)
 summary(office_data)
 
-# Check for duplicates and remove them
+#remove duplicates
 office_data <- office_data %>%
   distinct()
 
-# Handling missing values by filling NA with appropriate measures
-# For this dataset, we'll assume that IMDb ratings and votes should not have NAs
+#removing missing imdb and vote values
 office_data <- office_data %>%
   filter(!is.na(imdb_rating) & !is.na(total_votes))
 
-# Correcting any misformatted data in the columns
-office_data <- office_data %>%
-  mutate(
-    episode_name = str_trim(episode_name),  # Trim whitespace from episode names
-    writer = str_trim(writer),              # Trim whitespace from writer names
-    director = str_trim(director)           # Trim whitespace from director names
-  )
+##change character and season columns to factors
+office_data$character <- as.factor(office_data$character)
+office_data$season <- as.factor(office_data$season)
 
-# Splitting the 'writer' column into separate rows based on multiple writers per episode
+##remove NA values, 0 values, and duplicated rows
+office_data <- office_data[!is.na(data$sentimentAnalysis_score) & data$sentimentAnalysis_score != 0 & !duplicated(office_data), ]
+
+
+#split writer column into individual - some episodes have multiple writers and characters
 office_data_clean <- office_data %>%
-  separate_rows(writer, sep = ";\\s*and\\s*") %>%
+  separate_rows(character, sep = ",\\s*") %>%
+  separate_rows(character, sep = "and\\s*") %>%
+  separate_rows(character, sep = "&\\s*") %>%
+  separate_rows(writer, sep = ";\\s*") %>%  
+  separate_rows(writer, sep = ",\\s*") %>%
   separate_rows(writer, sep = "and\\s*") %>%
-  mutate(writer = str_trim(writer))  # Ensure no leading/trailing spaces
+  separate_rows(writer, sep = "&\\s*") 
 
-# List of writers who are also actors
+#list of writers who are also actors
 actor_writers <- c(
   "Steve Carell", 
   "B.J. Novak", 
@@ -44,23 +47,12 @@ actor_writers <- c(
   "Greg Daniels"
 )
 
-# Adding a new column to categorize writers
+#new columns for writter-actors and writer-only
 office_data_clean <- office_data_clean %>%
   mutate(writer_category = ifelse(writer %in% actor_writers, "Writer-Actor", "Writer-Only"))
 
-# Convert air_date to Date format if it exists
-if ("air_date" %in% colnames(office_data_clean)) {
-  office_data_clean$air_date <- as.Date(office_data_clean$air_date, format = "%Y-%m-%d")
-}
 
-# Validate the clean data structure
-str(office_data_clean)
-summary(office_data_clean)
 
-# Check for any anomalies or inconsistencies
-# Unique writer names
-unique_writers <- unique(office_data_clean$writer)
-print(unique_writers)
+#save the cleaned data to a new rds file
+saveRDS(office_data_clean, "Final/clean_office_data.rds")
 
-# Save the cleaned data to a new CSV file
-write.csv(office_data_clean, "data/clean_office_data.csv", row.names = FALSE)

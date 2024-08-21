@@ -5,12 +5,10 @@ format: html
 editor: visual
 ---
 
-```{r}
+```{r setup, include=FALSE}
 library(tidyverse)
 library(dplyr)
-library(stringr)
-library(MLmetrics)
-
+library(plotly)
 ```
 
 # Writer-Actors vs. Writer-Only: How Different Writer Categories Influence IMDb Ratings in *The Office*
@@ -41,4 +39,1406 @@ To address this question, I utilized a data set from *The Office* containing inf
 
     This investigation is important for understanding how the overlap of creative roles might affect television success. Data for this analysis comes from IMDb ratings and writer type, providing a basis for examining the influence of writer roles on the show's success.
 
-## 
+## Results
+
+### Plot 1: Average IMDb Rating by Writer
+
+This plot showcases the average IMDb rating for each writer involved in *The Office*.
+
+```{r, echo=FALSE}
+office_data_clean <- readRDS("clean_office_data.rds")
+
+# Calculate the average IMDb score for each writer
+result <- office_data_clean %>%
+  group_by(writer) %>%
+  summarize(mean_score = mean(imdb_rating, na.rm = TRUE), .groups = 'drop') %>%
+  filter(mean_score != 0) %>%
+  arrange(mean_score) # Sort by mean_score for ordering
+
+# Graphing
+ggplot(result, aes(x = reorder(writer, mean_score), y = mean_score)) +
+  geom_point(color = "darkblue", size = 3) +
+  geom_segment(aes(xend = writer, yend = 0), color = "lightblue", linetype = "dotted") +
+  coord_flip() +
+  labs(
+    title = "Average IMDb Rating by Writer",
+    x = "Writer",
+    y = "Average IMDb Rating"
+  ) +
+  theme(
+    # Set the background color of the entire plot
+    plot.background = element_rect(fill = "#f2e9dd", color = NA), # Light background for the entire plot
+    
+    # Set the background color of the plot area (where dots and lines are plotted)
+    panel.background = element_rect(fill = "#FFFFFE", color = NA), # Light color for the plot area
+    
+    # Set the text color
+    text = element_text(color = "#4B3F2D"), # Dark brown text
+    
+    # Bold the title and axis labels
+    plot.title = element_text(color = "#4B3F2D", face = "bold"),
+    axis.title.x = element_text(color = "#4B3F2D", face = "bold"),
+    axis.title.y = element_text(color = "#4B3F2D", face = "bold"),
+    
+    # Adjust the axis text color
+    axis.text.x = element_text(color = "#4B3F2D"),
+    axis.text.y = element_text(color = "#4B3F2D"),
+    
+    # Adjust grid lines and axis lines color
+    panel.grid.major = element_line(color = "lightgray"),
+    panel.grid.minor = element_line(color = "lightgray"),
+    axis.line = element_line(color = "darkgray")
+  )
+
+```
+
+**Description**: This plot reveals that writers such as Greg Daniels and Steve Carell (both who are actors in the show) tend to have higher average ratings, suggesting their significant impact on the show's success.
+
+### Plot 2: Animated Scatter Plot and Linear Regression for Season 10
+
+```{r, warning=FALSE, echo=FALSE}
+# Load the dataset
+office_data_clean <- readRDS("clean_office_data.rds")
+
+# Ensure both season columns are of the same type
+office_data_clean <- office_data_clean %>%
+  mutate(season = as.integer(season))
+
+# 1. Extend the dataset with a pretend season 10
+season_10 <- data.frame(
+  season = 10,
+  episode = 1:27, # 27 episodes in season 10
+  writer_category = rep(c("Writer-Actor", "Writer-Only"), length.out = 27),
+  episode_name = paste("Episode", 1:27), # Placeholder names for episodes
+  total_votes = 0
+)
+
+# Convert season in season_10 to integer
+season_10 <- season_10 %>%
+  mutate(season = as.integer(season))
+
+# Fit linear regression models
+model_writer_actor <- lm(imdb_rating ~ episode, data = office_data_clean %>% filter(writer_category == "Writer-Actor"))
+model_writer_only <- lm(imdb_rating ~ episode, data = office_data_clean %>% filter(writer_category == "Writer-Only"))
+
+# Predict IMDb ratings for each episode in season 10
+season_10 <- season_10 %>%
+  mutate(
+    mean_imdb_rating = ifelse(
+      writer_category == "Writer-Actor",
+      predict(model_writer_actor, newdata = season_10),
+      predict(model_writer_only, newdata = season_10)
+    )
+  )
+
+# Rename columns in season_10 to match office_data_clean
+season_10 <- season_10 %>%
+  rename(
+    imdb_rating = mean_imdb_rating # Ensure the column name matches the plot
+  )
+
+# Combine the datasets
+office_data_clean_extended <- bind_rows(office_data_clean, season_10)
+
+# Define color palette
+color_palette <- c(
+  "Writer-Actor" = "darkblue",
+  "Writer-Only" = "lightblue"
+)
+
+# Create the plot with lower opacity for the circles
+imdbgraph <- plot_ly(
+  data = office_data_clean_extended,
+  x = ~episode,
+  y = ~imdb_rating,
+  frame = ~season,
+  size = ~total_votes,
+  color = ~writer_category,
+  colors = color_palette,
+  type = 'scatter',
+  mode = 'markers',
+  text = ~paste(
+    "Episode:", episode_name,
+    "<br>Writer Category:", writer_category,
+    "<br>IMDb Rating:", round(imdb_rating, 2),
+    "<br>Total Votes:", total_votes
+  ),
+  hoverinfo = 'text',
+  marker = list(
+    sizemode = 'diameter',
+    opacity = 0.3 # Lower opacity value
+  )
+) %>%
+  layout(
+    title = list(
+      text = "IMDb Ratings of Episodes by Writer Category Across Seasons",
+      font = list(
+        family = "Arial",
+        size = 20,
+        color = "#4B3F2D",
+        face = "bold"
+      )
+    ),
+    xaxis = list(
+      title = "Episode Number",
+      titlefont = list(
+        family = "Arial",
+        size = 14,
+        color = "#4B3F2D",
+        face = "bold"
+      ),
+      tickfont = list(
+        family = "Arial",
+        size = 12,
+        color = "#4B3F2D"
+      )
+    ),
+    yaxis = list(
+      title = "IMDb Rating",
+      titlefont = list(
+        family = "Arial",
+        size = 14,
+        color = "#4B3F2D",
+        face = "bold"
+      ),
+      tickfont = list(
+        family = "Arial",
+        size = 12,
+        color = "#4B3F2D"
+      ),
+      range = c(0, 10)
+    ),
+    paper_bgcolor = "#f2e9dd",
+    plot_bgcolor = "#FFFFFE",
+    showlegend = TRUE
+  )
+
+# Show the plot
+imdbgraph
+
+
+```
+
+```{r, warning=FALSE, echo=FALSE}
+# Load the dataset
+office_data_clean <- readRDS("clean_office_data.rds")
+
+# Ensure both season columns are of the same type
+office_data_clean <- office_data_clean %>%
+  mutate(season = as.integer(season))
+
+# 1. Extend the dataset with a pretend season 10
+season_10 <- data.frame(
+  season = 10,
+  episode = 1:27, # 27 episodes in season 10
+  writer_category = rep(c("Writer-Actor", "Writer-Only"), length.out = 27),
+  episode_name = paste("Episode", 1:27), # Placeholder names for episodes
+  total_votes = 0
+)
+
+# Convert season in season_10 to integer
+season_10 <- season_10 %>%
+  mutate(season = as.integer(season))
+
+# Fit linear regression models
+model_writer_actor <- lm(imdb_rating ~ episode, data = office_data_clean %>% filter(writer_category == "Writer-Actor"))
+model_writer_only <- lm(imdb_rating ~ episode, data = office_data_clean %>% filter(writer_category == "Writer-Only"))
+
+# Predict IMDb ratings for each episode in season 10
+season_10 <- season_10 %>%
+  mutate(
+    mean_imdb_rating = ifelse(
+      writer_category == "Writer-Actor",
+      predict(model_writer_actor, newdata = season_10),
+      predict(model_writer_only, newdata = season_10)
+    )
+  )
+
+# Rename columns in season_10 to match office_data_clean
+season_10 <- season_10 %>%
+  rename(
+    imdb_rating = mean_imdb_rating # Ensure the column name matches the plot
+  )
+
+# Combine the datasets
+office_data_clean_extended <- bind_rows(office_data_clean, season_10)
+
+# Define color palette
+color_palette <- c(
+  "Writer-Actor" = "darkblue",
+  "Writer-Only" = "lightblue"
+)
+
+# Create the plot with lower opacity for the circles
+imdbgraph <- plot_ly(
+  data = office_data_clean_extended,
+  x = ~episode,
+  y = ~imdb_rating,
+  frame = ~season,
+  size = ~total_votes,
+  color = ~writer_category,
+  colors = color_palette,
+  type = 'scatter',
+  mode = 'markers',
+  text = ~paste(
+    "Episode:", episode_name,
+    "<br>Writer Category:", writer_category,
+    "<br>IMDb Rating:", round(imdb_rating, 2),
+    "<br>Total Votes:", total_votes
+  ),
+  hoverinfo = 'text',
+  marker = list(
+    sizemode = 'diameter',
+    opacity = 0.3 # Lower opacity value
+  )
+) %>%
+  layout(
+    title = list(
+      text = "IMDb Ratings of Episodes by Writer Category Across Seasons",
+      font = list(
+        family = "Arial",
+        size = 20,
+        color = "#4B3F2D",
+        face = "bold"
+      )
+    ),
+    xaxis = list(
+      title = "Episode Number",
+      titlefont = list(
+        family = "Arial",
+        size = 14,
+        color = "#4B3F2D",
+        face = "bold"
+      ),
+      tickfont = list(
+        family = "Arial",
+        size = 12,
+        color = "#4B3F2D"
+      )
+    ),
+    yaxis = list(
+      title = "IMDb Rating",
+      titlefont = list(
+        family = "Arial",
+        size = 14,
+        color = "#4B3F2D",
+        face = "bold"
+      ),
+      tickfont = list(
+        family = "Arial",
+        size = 12,
+        color = "#4B3F2D"
+      ),
+      range = c(0, 10)
+    ),
+    paper_bgcolor = "#f2e9dd",
+    plot_bgcolor = "#FFFFFE",
+    showlegend = TRUE
+  )
+
+# Show the plot
+imdbgraph
+
+
+
+```
+
+```{r, warning=FALSE, echo=FALSE}
+# Load the dataset
+office_data_clean <- readRDS("clean_office_data.rds")
+
+# Ensure both season columns are of the same type
+office_data_clean <- office_data_clean %>%
+  mutate(season = as.integer(season))
+
+# 1. Extend the dataset with a pretend season 10
+season_10 <- data.frame(
+  season = 10,
+  episode = 1:27, # 27 episodes in season 10
+  writer_category = rep(c("Writer-Actor", "Writer-Only"), length.out = 27),
+  episode_name = paste("Episode", 1:27), # Placeholder names for episodes
+  total_votes = 0
+)
+
+# Convert season in season_10 to integer
+season_10 <- season_10 %>%
+  mutate(season = as.integer(season))
+
+# Fit linear regression models
+model_writer_actor <- lm(imdb_rating ~ episode, data = office_data_clean %>% filter(writer_category == "Writer-Actor"))
+model_writer_only <- lm(imdb_rating ~ episode, data = office_data_clean %>% filter(writer_category == "Writer-Only"))
+
+# Predict IMDb ratings for each episode in season 10
+season_10 <- season_10 %>%
+  mutate(
+    mean_imdb_rating = ifelse(
+      writer_category == "Writer-Actor",
+      predict(model_writer_actor, newdata = season_10),
+      predict(model_writer_only, newdata = season_10)
+    )
+  )
+
+# Rename columns in season_10 to match office_data_clean
+season_10 <- season_10 %>%
+  rename(
+    imdb_rating = mean_imdb_rating # Ensure the column name matches the plot
+  )
+
+# Combine the datasets
+office_data_clean_extended <- bind_rows(office_data_clean, season_10)
+
+# Define color palette
+color_palette <- c(
+  "Writer-Actor" = "darkblue",
+  "Writer-Only" = "lightblue"
+)
+
+# Create the plot with lower opacity for the circles
+imdbgraph <- plot_ly(
+  data = office_data_clean_extended,
+  x = ~episode,
+  y = ~imdb_rating,
+  frame = ~season,
+  size = ~total_votes,
+  color = ~writer_category,
+  colors = color_palette,
+  type = 'scatter',
+  mode = 'markers',
+  text = ~paste(
+    "Episode:", episode_name,
+    "<br>Writer Category:", writer_category,
+    "<br>IMDb Rating:", round(imdb_rating, 2),
+    "<br>Total Votes:", total_votes
+  ),
+  hoverinfo = 'text',
+  marker = list(
+    sizemode = 'diameter',
+    opacity = 0.3 # Lower opacity value
+  )
+) %>%
+  layout(
+    title = list(
+      text = "IMDb Ratings of Episodes by Writer Category Across Seasons",
+      font = list(
+        family = "Arial",
+        size = 20,
+        color = "#4B3F2D",
+        face = "bold"
+      )
+    ),
+    xaxis = list(
+      title = "Episode Number",
+      titlefont = list(
+        family = "Arial",
+        size = 14,
+        color = "#4B3F2D",
+        face = "bold"
+      ),
+      tickfont = list(
+        family = "Arial",
+        size = 12,
+        color = "#4B3F2D"
+      )
+    ),
+    yaxis = list(
+      title = "IMDb Rating",
+      titlefont = list(
+        family = "Arial",
+        size = 14,
+        color = "#4B3F2D",
+        face = "bold"
+      ),
+      tickfont = list(
+        family = "Arial",
+        size = 12,
+        color = "#4B3F2D"
+      ),
+      range = c(0, 10)
+    ),
+    paper_bgcolor = "#f2e9dd",
+    plot_bgcolor = "#FFFFFE",
+    showlegend = TRUE
+  )
+
+# Show the plot
+imdbgraph
+
+```
+
+```{r, warning=FALSE, echo=FALSE}
+# Load the dataset
+office_data_clean <- readRDS("clean_office_data.rds")
+
+# Ensure both season columns are of the same type
+office_data_clean <- office_data_clean %>%
+  mutate(season = as.integer(season))
+
+# 1. Extend the dataset with a pretend season 10
+season_10 <- data.frame(
+  season = 10,
+  episode = 1:27, # 27 episodes in season 10
+  writer_category = rep(c("Writer-Actor", "Writer-Only"), length.out = 27),
+  episode_name = paste("Episode", 1:27), # Placeholder names for episodes
+  total_votes = 0
+)
+
+# Convert season in season_10 to integer
+season_10 <- season_10 %>%
+  mutate(season = as.integer(season))
+
+# Fit linear regression models
+model_writer_actor <- lm(imdb_rating ~ episode, data = office_data_clean %>% filter(writer_category == "Writer-Actor"))
+model_writer_only <- lm(imdb_rating ~ episode, data = office_data_clean %>% filter(writer_category == "Writer-Only"))
+
+# Predict IMDb ratings for each episode in season 10
+season_10 <- season_10 %>%
+  mutate(
+    mean_imdb_rating = ifelse(
+      writer_category == "Writer-Actor",
+      predict(model_writer_actor, newdata = season_10),
+      predict(model_writer_only, newdata = season_10)
+    )
+  )
+
+# Rename columns in season_10 to match office_data_clean
+season_10 <- season_10 %>%
+  rename(
+    imdb_rating = mean_imdb_rating # Ensure the column name matches the plot
+  )
+
+# Combine the datasets
+office_data_clean_extended <- bind_rows(office_data_clean, season_10)
+
+# Define color palette
+color_palette <- c(
+  "Writer-Actor" = "darkblue",
+  "Writer-Only" = "lightblue"
+)
+
+# Create the plot with lower opacity for the circles
+imdbgraph <- plot_ly(
+  data = office_data_clean_extended,
+  x = ~episode,
+  y = ~imdb_rating,
+  frame = ~season,
+  size = ~total_votes,
+  color = ~writer_category,
+  colors = color_palette,
+  type = 'scatter',
+  mode = 'markers',
+  text = ~paste(
+    "Episode:", episode_name,
+    "<br>Writer Category:", writer_category,
+    "<br>IMDb Rating:", round(imdb_rating, 2),
+    "<br>Total Votes:", total_votes
+  ),
+  hoverinfo = 'text',
+  marker = list(
+    sizemode = 'diameter',
+    opacity = 0.3 # Lower opacity value
+  )
+) %>%
+  layout(
+    title = list(
+      text = "IMDb Ratings of Episodes by Writer Category Across Seasons",
+      font = list(
+        family = "Arial",
+        size = 20,
+        color = "#4B3F2D",
+        face = "bold"
+      )
+    ),
+    xaxis = list(
+      title = "Episode Number",
+      titlefont = list(
+        family = "Arial",
+        size = 14,
+        color = "#4B3F2D",
+        face = "bold"
+      ),
+      tickfont = list(
+        family = "Arial",
+        size = 12,
+        color = "#4B3F2D"
+      )
+    ),
+    yaxis = list(
+      title = "IMDb Rating",
+      titlefont = list(
+        family = "Arial",
+        size = 14,
+        color = "#4B3F2D",
+        face = "bold"
+      ),
+      tickfont = list(
+        family = "Arial",
+        size = 12,
+        color = "#4B3F2D"
+      ),
+      range = c(0, 10)
+    ),
+    paper_bgcolor = "#f2e9dd",
+    plot_bgcolor = "#FFFFFE",
+    showlegend = TRUE
+  )
+
+# Show the plot
+imdbgraph
+
+```
+
+```{r, warning=FALSE, echo=FALSE}
+# Load the dataset
+office_data_clean <- readRDS("clean_office_data.rds")
+
+# Ensure both season columns are of the same type
+office_data_clean <- office_data_clean %>%
+  mutate(season = as.integer(season))
+
+# 1. Extend the dataset with a pretend season 10
+season_10 <- data.frame(
+  season = 10,
+  episode = 1:27, # 27 episodes in season 10
+  writer_category = rep(c("Writer-Actor", "Writer-Only"), length.out = 27),
+  episode_name = paste("Episode", 1:27), # Placeholder names for episodes
+  total_votes = 0
+)
+
+# Convert season in season_10 to integer
+season_10 <- season_10 %>%
+  mutate(season = as.integer(season))
+
+# Fit linear regression models
+model_writer_actor <- lm(imdb_rating ~ episode, data = office_data_clean %>% filter(writer_category == "Writer-Actor"))
+model_writer_only <- lm(imdb_rating ~ episode, data = office_data_clean %>% filter(writer_category == "Writer-Only"))
+
+# Predict IMDb ratings for each episode in season 10
+season_10 <- season_10 %>%
+  mutate(
+    mean_imdb_rating = ifelse(
+      writer_category == "Writer-Actor",
+      predict(model_writer_actor, newdata = season_10),
+      predict(model_writer_only, newdata = season_10)
+    )
+  )
+
+# Rename columns in season_10 to match office_data_clean
+season_10 <- season_10 %>%
+  rename(
+    imdb_rating = mean_imdb_rating # Ensure the column name matches the plot
+  )
+
+# Combine the datasets
+office_data_clean_extended <- bind_rows(office_data_clean, season_10)
+
+# Define color palette
+color_palette <- c(
+  "Writer-Actor" = "darkblue",
+  "Writer-Only" = "lightblue"
+)
+
+# Create the plot with lower opacity for the circles
+imdbgraph <- plot_ly(
+  data = office_data_clean_extended,
+  x = ~episode,
+  y = ~imdb_rating,
+  frame = ~season,
+  size = ~total_votes,
+  color = ~writer_category,
+  colors = color_palette,
+  type = 'scatter',
+  mode = 'markers',
+  text = ~paste(
+    "Episode:", episode_name,
+    "<br>Writer Category:", writer_category,
+    "<br>IMDb Rating:", round(imdb_rating, 2),
+    "<br>Total Votes:", total_votes
+  ),
+  hoverinfo = 'text',
+  marker = list(
+    sizemode = 'diameter',
+    opacity = 0.3 # Lower opacity value
+  )
+) %>%
+  layout(
+    title = list(
+      text = "IMDb Ratings of Episodes by Writer Category Across Seasons",
+      font = list(
+        family = "Arial",
+        size = 20,
+        color = "#4B3F2D",
+        face = "bold"
+      )
+    ),
+    xaxis = list(
+      title = "Episode Number",
+      titlefont = list(
+        family = "Arial",
+        size = 14,
+        color = "#4B3F2D",
+        face = "bold"
+      ),
+      tickfont = list(
+        family = "Arial",
+        size = 12,
+        color = "#4B3F2D"
+      )
+    ),
+    yaxis = list(
+      title = "IMDb Rating",
+      titlefont = list(
+        family = "Arial",
+        size = 14,
+        color = "#4B3F2D",
+        face = "bold"
+      ),
+      tickfont = list(
+        family = "Arial",
+        size = 12,
+        color = "#4B3F2D"
+      ),
+      range = c(0, 10)
+    ),
+    paper_bgcolor = "#f2e9dd",
+    plot_bgcolor = "#FFFFFE",
+    showlegend = TRUE
+  )
+
+# Show the plot
+imdbgraph
+
+```
+
+```{r, warning=FALSE, echo=FALSE}
+# Load the dataset
+office_data_clean <- readRDS("clean_office_data.rds")
+
+# Ensure both season columns are of the same type
+office_data_clean <- office_data_clean %>%
+  mutate(season = as.integer(season))
+
+# 1. Extend the dataset with a pretend season 10
+season_10 <- data.frame(
+  season = 10,
+  episode = 1:27, # 27 episodes in season 10
+  writer_category = rep(c("Writer-Actor", "Writer-Only"), length.out = 27),
+  episode_name = paste("Episode", 1:27), # Placeholder names for episodes
+  total_votes = 0
+)
+
+# Convert season in season_10 to integer
+season_10 <- season_10 %>%
+  mutate(season = as.integer(season))
+
+# Fit linear regression models
+model_writer_actor <- lm(imdb_rating ~ episode, data = office_data_clean %>% filter(writer_category == "Writer-Actor"))
+model_writer_only <- lm(imdb_rating ~ episode, data = office_data_clean %>% filter(writer_category == "Writer-Only"))
+
+# Predict IMDb ratings for each episode in season 10
+season_10 <- season_10 %>%
+  mutate(
+    mean_imdb_rating = ifelse(
+      writer_category == "Writer-Actor",
+      predict(model_writer_actor, newdata = season_10),
+      predict(model_writer_only, newdata = season_10)
+    )
+  )
+
+# Rename columns in season_10 to match office_data_clean
+season_10 <- season_10 %>%
+  rename(
+    imdb_rating = mean_imdb_rating # Ensure the column name matches the plot
+  )
+
+# Combine the datasets
+office_data_clean_extended <- bind_rows(office_data_clean, season_10)
+
+# Define color palette
+color_palette <- c(
+  "Writer-Actor" = "darkblue",
+  "Writer-Only" = "lightblue"
+)
+
+# Create the plot with lower opacity for the circles
+imdbgraph <- plot_ly(
+  data = office_data_clean_extended,
+  x = ~episode,
+  y = ~imdb_rating,
+  frame = ~season,
+  size = ~total_votes,
+  color = ~writer_category,
+  colors = color_palette,
+  type = 'scatter',
+  mode = 'markers',
+  text = ~paste(
+    "Episode:", episode_name,
+    "<br>Writer Category:", writer_category,
+    "<br>IMDb Rating:", round(imdb_rating, 2),
+    "<br>Total Votes:", total_votes
+  ),
+  hoverinfo = 'text',
+  marker = list(
+    sizemode = 'diameter',
+    opacity = 0.3 # Lower opacity value
+  )
+) %>%
+  layout(
+    title = list(
+      text = "IMDb Ratings of Episodes by Writer Category Across Seasons",
+      font = list(
+        family = "Arial",
+        size = 20,
+        color = "#4B3F2D",
+        face = "bold"
+      )
+    ),
+    xaxis = list(
+      title = "Episode Number",
+      titlefont = list(
+        family = "Arial",
+        size = 14,
+        color = "#4B3F2D",
+        face = "bold"
+      ),
+      tickfont = list(
+        family = "Arial",
+        size = 12,
+        color = "#4B3F2D"
+      )
+    ),
+    yaxis = list(
+      title = "IMDb Rating",
+      titlefont = list(
+        family = "Arial",
+        size = 14,
+        color = "#4B3F2D",
+        face = "bold"
+      ),
+      tickfont = list(
+        family = "Arial",
+        size = 12,
+        color = "#4B3F2D"
+      ),
+      range = c(0, 10)
+    ),
+    paper_bgcolor = "#f2e9dd",
+    plot_bgcolor = "#FFFFFE",
+    showlegend = TRUE
+  )
+
+# Show the plot
+imdbgraph
+
+```
+
+```{r, warning=FALSE, echo=FALSE}
+# Load the dataset
+office_data_clean <- readRDS("clean_office_data.rds")
+
+# Ensure both season columns are of the same type
+office_data_clean <- office_data_clean %>%
+  mutate(season = as.integer(season))
+
+# 1. Extend the dataset with a pretend season 10
+season_10 <- data.frame(
+  season = 10,
+  episode = 1:27, # 27 episodes in season 10
+  writer_category = rep(c("Writer-Actor", "Writer-Only"), length.out = 27),
+  episode_name = paste("Episode", 1:27), # Placeholder names for episodes
+  total_votes = 0
+)
+
+# Convert season in season_10 to integer
+season_10 <- season_10 %>%
+  mutate(season = as.integer(season))
+
+# Fit linear regression models
+model_writer_actor <- lm(imdb_rating ~ episode, data = office_data_clean %>% filter(writer_category == "Writer-Actor"))
+model_writer_only <- lm(imdb_rating ~ episode, data = office_data_clean %>% filter(writer_category == "Writer-Only"))
+
+# Predict IMDb ratings for each episode in season 10
+season_10 <- season_10 %>%
+  mutate(
+    mean_imdb_rating = ifelse(
+      writer_category == "Writer-Actor",
+      predict(model_writer_actor, newdata = season_10),
+      predict(model_writer_only, newdata = season_10)
+    )
+  )
+
+# Rename columns in season_10 to match office_data_clean
+season_10 <- season_10 %>%
+  rename(
+    imdb_rating = mean_imdb_rating # Ensure the column name matches the plot
+  )
+
+# Combine the datasets
+office_data_clean_extended <- bind_rows(office_data_clean, season_10)
+
+# Define color palette
+color_palette <- c(
+  "Writer-Actor" = "darkblue",
+  "Writer-Only" = "lightblue"
+)
+
+# Create the plot with lower opacity for the circles
+imdbgraph <- plot_ly(
+  data = office_data_clean_extended,
+  x = ~episode,
+  y = ~imdb_rating,
+  frame = ~season,
+  size = ~total_votes,
+  color = ~writer_category,
+  colors = color_palette,
+  type = 'scatter',
+  mode = 'markers',
+  text = ~paste(
+    "Episode:", episode_name,
+    "<br>Writer Category:", writer_category,
+    "<br>IMDb Rating:", round(imdb_rating, 2),
+    "<br>Total Votes:", total_votes
+  ),
+  hoverinfo = 'text',
+  marker = list(
+    sizemode = 'diameter',
+    opacity = 0.3 # Lower opacity value
+  )
+) %>%
+  layout(
+    title = list(
+      text = "IMDb Ratings of Episodes by Writer Category Across Seasons",
+      font = list(
+        family = "Arial",
+        size = 20,
+        color = "#4B3F2D",
+        face = "bold"
+      )
+    ),
+    xaxis = list(
+      title = "Episode Number",
+      titlefont = list(
+        family = "Arial",
+        size = 14,
+        color = "#4B3F2D",
+        face = "bold"
+      ),
+      tickfont = list(
+        family = "Arial",
+        size = 12,
+        color = "#4B3F2D"
+      )
+    ),
+    yaxis = list(
+      title = "IMDb Rating",
+      titlefont = list(
+        family = "Arial",
+        size = 14,
+        color = "#4B3F2D",
+        face = "bold"
+      ),
+      tickfont = list(
+        family = "Arial",
+        size = 12,
+        color = "#4B3F2D"
+      ),
+      range = c(0, 10)
+    ),
+    paper_bgcolor = "#f2e9dd",
+    plot_bgcolor = "#FFFFFE",
+    showlegend = TRUE
+  )
+
+# Show the plot
+imdbgraph
+
+```
+
+```{r, warning=FALSE, echo=FALSE}
+# Load the dataset
+office_data_clean <- readRDS("clean_office_data.rds")
+
+# Ensure both season columns are of the same type
+office_data_clean <- office_data_clean %>%
+  mutate(season = as.integer(season))
+
+# 1. Extend the dataset with a pretend season 10
+season_10 <- data.frame(
+  season = 10,
+  episode = 1:27, # 27 episodes in season 10
+  writer_category = rep(c("Writer-Actor", "Writer-Only"), length.out = 27),
+  episode_name = paste("Episode", 1:27), # Placeholder names for episodes
+  total_votes = 0
+)
+
+# Convert season in season_10 to integer
+season_10 <- season_10 %>%
+  mutate(season = as.integer(season))
+
+# Fit linear regression models
+model_writer_actor <- lm(imdb_rating ~ episode, data = office_data_clean %>% filter(writer_category == "Writer-Actor"))
+model_writer_only <- lm(imdb_rating ~ episode, data = office_data_clean %>% filter(writer_category == "Writer-Only"))
+
+# Predict IMDb ratings for each episode in season 10
+season_10 <- season_10 %>%
+  mutate(
+    mean_imdb_rating = ifelse(
+      writer_category == "Writer-Actor",
+      predict(model_writer_actor, newdata = season_10),
+      predict(model_writer_only, newdata = season_10)
+    )
+  )
+
+# Rename columns in season_10 to match office_data_clean
+season_10 <- season_10 %>%
+  rename(
+    imdb_rating = mean_imdb_rating # Ensure the column name matches the plot
+  )
+
+# Combine the datasets
+office_data_clean_extended <- bind_rows(office_data_clean, season_10)
+
+# Define color palette
+color_palette <- c(
+  "Writer-Actor" = "darkblue",
+  "Writer-Only" = "lightblue"
+)
+
+# Create the plot with lower opacity for the circles
+imdbgraph <- plot_ly(
+  data = office_data_clean_extended,
+  x = ~episode,
+  y = ~imdb_rating,
+  frame = ~season,
+  size = ~total_votes,
+  color = ~writer_category,
+  colors = color_palette,
+  type = 'scatter',
+  mode = 'markers',
+  text = ~paste(
+    "Episode:", episode_name,
+    "<br>Writer Category:", writer_category,
+    "<br>IMDb Rating:", round(imdb_rating, 2),
+    "<br>Total Votes:", total_votes
+  ),
+  hoverinfo = 'text',
+  marker = list(
+    sizemode = 'diameter',
+    opacity = 0.3 # Lower opacity value
+  )
+) %>%
+  layout(
+    title = list(
+      text = "IMDb Ratings of Episodes by Writer Category Across Seasons",
+      font = list(
+        family = "Arial",
+        size = 20,
+        color = "#4B3F2D",
+        face = "bold"
+      )
+    ),
+    xaxis = list(
+      title = "Episode Number",
+      titlefont = list(
+        family = "Arial",
+        size = 14,
+        color = "#4B3F2D",
+        face = "bold"
+      ),
+      tickfont = list(
+        family = "Arial",
+        size = 12,
+        color = "#4B3F2D"
+      )
+    ),
+    yaxis = list(
+      title = "IMDb Rating",
+      titlefont = list(
+        family = "Arial",
+        size = 14,
+        color = "#4B3F2D",
+        face = "bold"
+      ),
+      tickfont = list(
+        family = "Arial",
+        size = 12,
+        color = "#4B3F2D"
+      ),
+      range = c(0, 10)
+    ),
+    paper_bgcolor = "#f2e9dd",
+    plot_bgcolor = "#FFFFFE",
+    showlegend = TRUE
+  )
+
+# Show the plot
+imdbgraph
+
+```
+
+```{r, warning=FALSE, echo=FALSE}
+# Load the dataset
+office_data_clean <- readRDS("clean_office_data.rds")
+
+# Ensure both season columns are of the same type
+office_data_clean <- office_data_clean %>%
+  mutate(season = as.integer(season))
+
+# 1. Extend the dataset with a pretend season 10
+season_10 <- data.frame(
+  season = 10,
+  episode = 1:27, # 27 episodes in season 10
+  writer_category = rep(c("Writer-Actor", "Writer-Only"), length.out = 27),
+  episode_name = paste("Episode", 1:27), # Placeholder names for episodes
+  total_votes = 0
+)
+
+# Convert season in season_10 to integer
+season_10 <- season_10 %>%
+  mutate(season = as.integer(season))
+
+# Fit linear regression models
+model_writer_actor <- lm(imdb_rating ~ episode, data = office_data_clean %>% filter(writer_category == "Writer-Actor"))
+model_writer_only <- lm(imdb_rating ~ episode, data = office_data_clean %>% filter(writer_category == "Writer-Only"))
+
+# Predict IMDb ratings for each episode in season 10
+season_10 <- season_10 %>%
+  mutate(
+    mean_imdb_rating = ifelse(
+      writer_category == "Writer-Actor",
+      predict(model_writer_actor, newdata = season_10),
+      predict(model_writer_only, newdata = season_10)
+    )
+  )
+
+# Rename columns in season_10 to match office_data_clean
+season_10 <- season_10 %>%
+  rename(
+    imdb_rating = mean_imdb_rating # Ensure the column name matches the plot
+  )
+
+# Combine the datasets
+office_data_clean_extended <- bind_rows(office_data_clean, season_10)
+
+# Define color palette
+color_palette <- c(
+  "Writer-Actor" = "darkblue",
+  "Writer-Only" = "lightblue"
+)
+
+# Create the plot with lower opacity for the circles
+imdbgraph <- plot_ly(
+  data = office_data_clean_extended,
+  x = ~episode,
+  y = ~imdb_rating,
+  frame = ~season,
+  size = ~total_votes,
+  color = ~writer_category,
+  colors = color_palette,
+  type = 'scatter',
+  mode = 'markers',
+  text = ~paste(
+    "Episode:", episode_name,
+    "<br>Writer Category:", writer_category,
+    "<br>IMDb Rating:", round(imdb_rating, 2),
+    "<br>Total Votes:", total_votes
+  ),
+  hoverinfo = 'text',
+  marker = list(
+    sizemode = 'diameter',
+    opacity = 0.3 # Lower opacity value
+  )
+) %>%
+  layout(
+    title = list(
+      text = "IMDb Ratings of Episodes by Writer Category Across Seasons",
+      font = list(
+        family = "Arial",
+        size = 20,
+        color = "#4B3F2D",
+        face = "bold"
+      )
+    ),
+    xaxis = list(
+      title = "Episode Number",
+      titlefont = list(
+        family = "Arial",
+        size = 14,
+        color = "#4B3F2D",
+        face = "bold"
+      ),
+      tickfont = list(
+        family = "Arial",
+        size = 12,
+        color = "#4B3F2D"
+      )
+    ),
+    yaxis = list(
+      title = "IMDb Rating",
+      titlefont = list(
+        family = "Arial",
+        size = 14,
+        color = "#4B3F2D",
+        face = "bold"
+      ),
+      tickfont = list(
+        family = "Arial",
+        size = 12,
+        color = "#4B3F2D"
+      ),
+      range = c(0, 10)
+    ),
+    paper_bgcolor = "#f2e9dd",
+    plot_bgcolor = "#FFFFFE",
+    showlegend = TRUE
+  )
+
+# Show the plot
+imdbgraph
+
+```
+
+**Description**: The animated plot demonstrates a notable difference between the ratings of episodes written by actor-writers and those by writers-only. The former generally receive higher ratings. PDF files do not allow for the animated plot to function so I uploaded screenshots for each season.
+
+```{r, warning=FALSE, echo=FALSE}
+# Load the dataset
+office_data_clean <- readRDS("clean_office_data.rds")
+
+# Ensure both season columns are of the same type
+office_data_clean <- office_data_clean %>%
+  mutate(season = as.integer(season))
+
+# 1. Extend the dataset with a pretend season 10
+season_10 <- data.frame(
+  season = 10,
+  episode = 1:27, # 27 episodes in season 10
+  writer_category = rep(c("Writer-Actor", "Writer-Only"), length.out = 27),
+  episode_name = paste("Episode", 1:27), # Placeholder names for episodes
+  total_votes = 0
+)
+
+# Convert season in season_10 to integer
+season_10 <- season_10 %>%
+  mutate(season = as.integer(season))
+
+# Fit linear regression models
+model_writer_actor <- lm(imdb_rating ~ episode, data = office_data_clean %>% filter(writer_category == "Writer-Actor"))
+model_writer_only <- lm(imdb_rating ~ episode, data = office_data_clean %>% filter(writer_category == "Writer-Only"))
+
+# Predict IMDb ratings for each episode in season 10
+season_10 <- season_10 %>%
+  mutate(
+    mean_imdb_rating = ifelse(
+      writer_category == "Writer-Actor",
+      predict(model_writer_actor, newdata = season_10),
+      predict(model_writer_only, newdata = season_10)
+    )
+  )
+
+# Rename columns in season_10 to match office_data_clean
+season_10 <- season_10 %>%
+  rename(
+    imdb_rating = mean_imdb_rating # Ensure the column name matches the plot
+  )
+
+# Combine the datasets
+office_data_clean_extended <- bind_rows(office_data_clean, season_10)
+
+# Define color palette
+color_palette <- c(
+  "Writer-Actor" = "darkblue",
+  "Writer-Only" = "lightblue"
+)
+
+# Create the plot with lower opacity for the circles
+imdbgraph <- plot_ly(
+  data = office_data_clean_extended,
+  x = ~episode,
+  y = ~imdb_rating,
+  frame = ~season,
+  size = ~total_votes,
+  color = ~writer_category,
+  colors = color_palette,
+  type = 'scatter',
+  mode = 'markers',
+  text = ~paste(
+    "Episode:", episode_name,
+    "<br>Writer Category:", writer_category,
+    "<br>IMDb Rating:", round(imdb_rating, 2),
+    "<br>Total Votes:", total_votes
+  ),
+  hoverinfo = 'text',
+  marker = list(
+    sizemode = 'diameter',
+    opacity = 0.3 # Lower opacity value
+  )
+) %>%
+  layout(
+    title = list(
+      text = "IMDb Ratings of Episodes by Writer Category Across Seasons",
+      font = list(
+        family = "Arial",
+        size = 20,
+        color = "#4B3F2D",
+        face = "bold"
+      )
+    ),
+    xaxis = list(
+      title = "Episode Number",
+      titlefont = list(
+        family = "Arial",
+        size = 14,
+        color = "#4B3F2D",
+        face = "bold"
+      ),
+      tickfont = list(
+        family = "Arial",
+        size = 12,
+        color = "#4B3F2D"
+      )
+    ),
+    yaxis = list(
+      title = "IMDb Rating",
+      titlefont = list(
+        family = "Arial",
+        size = 14,
+        color = "#4B3F2D",
+        face = "bold"
+      ),
+      tickfont = list(
+        family = "Arial",
+        size = 12,
+        color = "#4B3F2D"
+      ),
+      range = c(0, 10)
+    ),
+    paper_bgcolor = "#f2e9dd",
+    plot_bgcolor = "#FFFFFE",
+    showlegend = TRUE
+  )
+
+# Show the plot
+imdbgraph
+
+# Get summaries
+summary(model_writer_actor)
+summary(model_writer_only)
+
+```
+
+### **Model for "Writer-Actor"**
+
+-   **Intercept:** 8.31 (starting IMDb rating)
+
+-   **Episode coefficient:** 0.023 (increase in IMDb rating per episode)
+
+-   **R-squared:** 0.1229 (12.29% of the rating variance explained)
+
+-   **p-value:** \< 0.0000000000000002 (model is highly significant)
+
+### **Model for "Writer-Only"**
+
+-   **Intercept:** 8.01 (starting IMDb rating)
+
+-   **Episode coefficient:** 0.013 (increase in IMDb rating per episode)
+
+-   **R-squared:** 0.03252 (3.25% of the rating variance explained)
+
+-   **p-value:** \< 0.0000000000000002 (model is highly significant)
+
+## Statistical Analysis:
+
+A t-test was conducted to compare the IMDb ratings between the two groups (Writer-Actors vs. Writers-Only).
+
+```{r, echo=FALSE}
+# Prepare the dataset for IMDb ratings
+imdb_writer_summary <- office_data_clean %>%
+  group_by(season, episode, writer_category, episode_name) %>%
+  summarize(
+    mean_imdb_rating = mean(imdb_rating, na.rm = TRUE),
+    total_votes = sum(total_votes, na.rm = TRUE)
+  ) %>%
+  ungroup()
+
+# Perform a t-test
+t_test_results <- t.test(mean_imdb_rating ~ writer_category, data = imdb_writer_summary)
+
+# Display the t-test results
+t_test_results
+```
+
+-   **Null Hypothesis:** Difference in score = 0
+
+-   **Alternative Hypothesis:** Difference in score ≠ 0
+
+-   **t-value:** 4.87 (indicates the magnitude of the difference relative to variability)
+
+-   **p-value:** 0.00000262 (very small, indicates strong evidence against the null hypothesis)
+
+-   **95% Confidence Interval:** 0.2168 to 0.5125 (range within which the true difference is likely to fall with 95% confidence)
+
+```{r, echo=FALSE}
+# Violin Plot
+ggplot(imdb_writer_summary, aes(x = writer_category, y = mean_imdb_rating, fill = writer_category)) +
+  geom_violin(trim = FALSE, color = "black", scale = "area") +
+  geom_boxplot(width = 0.2, position = position_dodge(0.9), color = "black", fill = "lightgray", outlier.size = 2, outlier.shape = 16) +
+  labs(title = "Violin Plot of IMDb Ratings by Writer Category",
+       x = "Writer Category",
+       y = "Mean IMDb Rating") +
+  theme_minimal(base_size = 15) +
+  scale_fill_manual(values = color_palette) +
+  theme(
+    legend.position = "none",
+    axis.line.y = element_blank(),       # Remove the y-axis line
+    axis.ticks.y = element_blank(),      # Remove the y-axis ticks
+    axis.text.y = element_blank(),       # Remove the y-axis text
+    axis.title.y = element_text(face = "bold", color = "#4b3621"), # Dark brown y-axis title
+    axis.title.x = element_text(face = "bold", color = "#4b3621"), # Dark brown x-axis title
+    plot.title = element_text(face = "bold", color = "#4b3621"),   # Dark brown title
+    plot.background = element_rect(fill = "#f2e9dd"),   # Background color for the entire plot
+    panel.background = element_rect(fill = "#FFFFFE")   # Background color for the panel (where the plot is drawn)
+  )
+
+```
+
+**Description for Violin Plot:** The violin plot illustrates the distribution of IMDb ratings across writer categories. The wider spread for actor-writers suggests greater variability and higher ratings.
+
+```{r, echo=FALSE}
+# Load required package
+library(ggplot2)
+
+
+# Define color palette
+color_palette <- c(
+  "Writer-Actor" = "darkblue",
+  "Writer-Only" = "lightblue"
+)
+
+# Recolor the Density Plot
+ggplot(imdb_writer_summary, aes(x = mean_imdb_rating, fill = writer_category, color = writer_category)) +
+  geom_density(alpha = 0.4) +
+  scale_fill_manual(values = color_palette) +
+  scale_color_manual(values = color_palette) +
+  labs(title = "Density Plot of IMDb Ratings by Writer Category",
+       x = "Mean IMDb Rating") +
+  theme_minimal(base_size = 15) +
+  theme(
+    legend.position = "none",
+    axis.line.y = element_blank(),       # Remove the y-axis line
+    axis.ticks.y = element_blank(),      # Remove the y-axis ticks
+    axis.text.y = element_blank(),       # Remove the y-axis text
+    plot.background = element_rect(fill = "#f2e9dd"),   # Background color for the entire plot
+    panel.background = element_rect(fill = "#FFFFFE"),  # Background color for the panel (where the plot is drawn)
+    plot.title = element_text(face = "bold", color = "#4b3621"),  # Dark brown title
+    axis.title.x = element_text(face = "bold", color = "#4b3621") # Dark brown x-axis title
+  )
+```
+
+**Description for Density Plot:** The density plot shows a more concentrated peak for actor-writers at higher IMDb ratings, supporting the findings of higher average ratings for episodes they write.
+
+## Discussion
+
+The data reveals a large distinction in IMDb ratings between episodes written by Writer-Actors and those written by Writer-Only individuals. This suggests that the involvement of actors in the writing process positively impacts the show's reception. This impact might be attributed to their deeper understanding of character dynamics and audience expectations, or it may be due to audiences favoring episodes that feature certain characters.
+
+These conclusions are significant as they highlight the potential benefits of involving actors in the creative writing process, particularly in a series as character-driven as *The Office*. However, limitations such as the subjective nature of IMDb ratings and the varying involvement levels of Writer-Actors should be considered.
+
+Future research could explore additional variables, such as the role of director influence or the impact of specific plotlines, to further understand the different elements that contribute to a show's success.
